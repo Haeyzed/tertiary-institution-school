@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\API\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\CourseController;
@@ -33,6 +34,30 @@ use App\Http\Controllers\AnnouncementController;
 
 // API version prefix
 Route::prefix('v1')->group(function () {
+
+    // Dashboard routes
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/', [DashboardController::class, 'index']);
+        Route::get('/general-stats', [DashboardController::class, 'generalStats']);
+        Route::get('/academic-stats', [DashboardController::class, 'academicStats']);
+        Route::get('/financial-stats', [DashboardController::class, 'financialStats']);
+        Route::get('/student-stats', [DashboardController::class, 'studentStats']);
+        Route::get('/staff-stats', [DashboardController::class, 'staffStats']);
+        Route::get('/performance-stats', [DashboardController::class, 'performanceStats']);
+        Route::get('/enrollment-stats', [DashboardController::class, 'enrollmentStats']);
+        Route::get('/notification-stats', [DashboardController::class, 'notificationStats']);
+        Route::get('/recent-activities', [DashboardController::class, 'recentActivities']);
+        Route::get('/performance-trends', [DashboardController::class, 'performanceTrends']);
+        Route::get('/top-performing-students', [DashboardController::class, 'topPerformingStudents']);
+        Route::get('/course-performance-stats', [DashboardController::class, 'coursePerformanceStats']);
+        Route::get('/score-distribution', [DashboardController::class, 'scoreDistribution']);
+        Route::get('/grade-distribution', [DashboardController::class, 'gradeDistribution']);
+        Route::get('/payments-by-method', [DashboardController::class, 'paymentsByMethod']);
+        Route::get('/payments-by-month', [DashboardController::class, 'paymentsByMonth']);
+        Route::get('/students-by-program', [DashboardController::class, 'studentsByProgram']);
+        Route::get('/students-by-gender', [DashboardController::class, 'studentsByGender']);
+    });
+
     // User routes
     Route::apiResource('users', UserController::class);
     Route::get('users/search/{term}', [UserController::class, 'search']);

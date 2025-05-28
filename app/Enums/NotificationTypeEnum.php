@@ -4,68 +4,53 @@ namespace App\Enums;
 
 /**
  * Class NotificationTypeEnum
- * 
- * Represents the notification type options available in the system.
- * 
+ *
+ * Represents notification type options in the system.
+ *
  * @package App\Enums
  */
-class NotificationTypeEnum
+enum NotificationTypeEnum: string
 {
+    case GENERAL = 'general';
+    case ACADEMIC = 'academic';
+    case FINANCIAL = 'financial';
+    case ALERT = 'alert';
+
     /**
-     * General notification type.
-     *
-     * @var string
-     */
-    public const GENERAL = 'general';
-    
-    /**
-     * Academic notification type.
-     *
-     * @var string
-     */
-    public const ACADEMIC = 'academic';
-    
-    /**
-     * Financial notification type.
-     *
-     * @var string
-     */
-    public const FINANCIAL = 'financial';
-    
-    /**
-     * Alert notification type.
-     *
-     * @var string
-     */
-    public const ALERT = 'alert';
-    
-    /**
-     * Get all available notification type options.
+     * Get all values as an array.
      *
      * @return array
      */
     public static function values(): array
     {
-        return [
-            self::GENERAL,
-            self::ACADEMIC,
-            self::FINANCIAL,
-            self::ALERT,
-        ];
+        return array_column(self::cases(), 'value');
     }
-    
+
     /**
-     * Get all notification type options with labels.
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match($this) {
+            self::GENERAL => 'General',
+            self::ACADEMIC => 'Academic',
+            self::FINANCIAL => 'Financial',
+            self::ALERT => 'Alert',
+        };
+    }
+
+    /**
+     * Get all enum values with their labels.
      *
      * @return array
      */
     public static function options(): array
     {
-        return [
-            self::GENERAL => 'General',
-            self::ACADEMIC => 'Academic',
-            self::FINANCIAL => 'Financial',
-            self::ALERT => 'Alert',
-        ];
+        return array_reduce(self::cases(), function ($carry, $enum) {
+            $carry[$enum->value] = $enum->label();
+            return $carry;
+        }, []);
     }
 }

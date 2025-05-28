@@ -94,7 +94,7 @@ class Exam extends Model
      */
     public function isPending(): bool
     {
-        return $this->hasStatus(ExamStatusEnum::PENDING);
+        return $this->hasStatus(ExamStatusEnum::PENDING->value);
     }
 
     /**
@@ -104,7 +104,7 @@ class Exam extends Model
      */
     public function isOngoing(): bool
     {
-        return $this->hasStatus(ExamStatusEnum::ONGOING);
+        return $this->hasStatus(ExamStatusEnum::ONGOING->value);
     }
 
     /**
@@ -114,7 +114,7 @@ class Exam extends Model
      */
     public function isCompleted(): bool
     {
-        return $this->hasStatus(ExamStatusEnum::COMPLETED);
+        return $this->hasStatus(ExamStatusEnum::COMPLETED->value);
     }
 
     /**
@@ -124,6 +124,6 @@ class Exam extends Model
      */
     public function isCancelled(): bool
     {
-        return $this->hasStatus(ExamStatusEnum::CANCELLED);
+        return $this->hasStatus(ExamStatusEnum::CANCELLED->value);
     }
 }

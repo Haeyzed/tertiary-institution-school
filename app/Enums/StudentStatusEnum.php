@@ -4,68 +4,53 @@ namespace App\Enums;
 
 /**
  * Class StudentStatusEnum
- * 
- * Represents the status options available for students.
- * 
+ *
+ * Represents student status options in the system.
+ *
  * @package App\Enums
  */
-class StudentStatusEnum
+enum StudentStatusEnum: string
 {
+    case ACTIVE = 'active';
+    case INACTIVE = 'inactive';
+    case GRADUATED = 'graduated';
+    case SUSPENDED = 'suspended';
+
     /**
-     * Active student status.
-     *
-     * @var string
-     */
-    public const ACTIVE = 'active';
-    
-    /**
-     * Inactive student status.
-     *
-     * @var string
-     */
-    public const INACTIVE = 'inactive';
-    
-    /**
-     * Graduated student status.
-     *
-     * @var string
-     */
-    public const GRADUATED = 'graduated';
-    
-    /**
-     * Suspended student status.
-     *
-     * @var string
-     */
-    public const SUSPENDED = 'suspended';
-    
-    /**
-     * Get all available student status options.
+     * Get all values as an array.
      *
      * @return array
      */
     public static function values(): array
     {
-        return [
-            self::ACTIVE,
-            self::INACTIVE,
-            self::GRADUATED,
-            self::SUSPENDED,
-        ];
+        return array_column(self::cases(), 'value');
     }
-    
+
     /**
-     * Get all student status options with labels.
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match($this) {
+            self::ACTIVE => 'Active',
+            self::INACTIVE => 'Inactive',
+            self::GRADUATED => 'Graduated',
+            self::SUSPENDED => 'Suspended',
+        };
+    }
+
+    /**
+     * Get all enum values with their labels.
      *
      * @return array
      */
     public static function options(): array
     {
-        return [
-            self::ACTIVE => 'Active',
-            self::INACTIVE => 'Inactive',
-            self::GRADUATED => 'Graduated',
-            self::SUSPENDED => 'Suspended',
-        ];
+        return array_reduce(self::cases(), function ($carry, $enum) {
+            $carry[$enum->value] = $enum->label();
+            return $carry;
+        }, []);
     }
 }

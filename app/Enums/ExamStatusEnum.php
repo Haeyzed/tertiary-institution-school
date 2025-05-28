@@ -4,68 +4,53 @@ namespace App\Enums;
 
 /**
  * Class ExamStatusEnum
- * 
- * Represents the exam status options available in the system.
- * 
+ *
+ * Represents exam status options in the system.
+ *
  * @package App\Enums
  */
-class ExamStatusEnum
+enum ExamStatusEnum: string
 {
+    case PENDING = 'pending';
+    case ONGOING = 'ongoing';
+    case COMPLETED = 'completed';
+    case CANCELLED = 'cancelled';
+
     /**
-     * Pending exam status.
-     *
-     * @var string
-     */
-    public const PENDING = 'pending';
-    
-    /**
-     * Ongoing exam status.
-     *
-     * @var string
-     */
-    public const ONGOING = 'ongoing';
-    
-    /**
-     * Completed exam status.
-     *
-     * @var string
-     */
-    public const COMPLETED = 'completed';
-    
-    /**
-     * Cancelled exam status.
-     *
-     * @var string
-     */
-    public const CANCELLED = 'cancelled';
-    
-    /**
-     * Get all available exam status options.
+     * Get all values as an array.
      *
      * @return array
      */
     public static function values(): array
     {
-        return [
-            self::PENDING,
-            self::ONGOING,
-            self::COMPLETED,
-            self::CANCELLED,
-        ];
+        return array_column(self::cases(), 'value');
     }
-    
+
     /**
-     * Get all exam status options with labels.
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match($this) {
+            self::PENDING => 'Pending',
+            self::ONGOING => 'Ongoing',
+            self::COMPLETED => 'Completed',
+            self::CANCELLED => 'Cancelled',
+        };
+    }
+
+    /**
+     * Get all enum values with their labels.
      *
      * @return array
      */
     public static function options(): array
     {
-        return [
-            self::PENDING => 'Pending',
-            self::ONGOING => 'Ongoing',
-            self::COMPLETED => 'Completed',
-            self::CANCELLED => 'Cancelled',
-        ];
+        return array_reduce(self::cases(), function ($carry, $enum) {
+            $carry[$enum->value] = $enum->label();
+            return $carry;
+        }, []);
     }
 }

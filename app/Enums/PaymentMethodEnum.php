@@ -4,86 +4,59 @@ namespace App\Enums;
 
 /**
  * Class PaymentMethodEnum
- * 
- * Represents the payment method options available in the system.
- * 
+ *
+ * Represents payment method options in the system.
+ *
  * @package App\Enums
  */
-class PaymentMethodEnum
+enum PaymentMethodEnum: string
 {
+    case CASH = 'cash';
+    case BANK_TRANSFER = 'bank_transfer';
+    case CREDIT_CARD = 'credit_card';
+    case DEBIT_CARD = 'debit_card';
+    case MOBILE_MONEY = 'mobile_money';
+    case CHEQUE = 'cheque';
+    case PAYSTACK = 'paystack';
+
     /**
-     * Cash payment method.
-     *
-     * @var string
-     */
-    public const CASH = 'cash';
-    
-    /**
-     * Bank transfer payment method.
-     *
-     * @var string
-     */
-    public const BANK_TRANSFER = 'bank_transfer';
-    
-    /**
-     * Credit card payment method.
-     *
-     * @var string
-     */
-    public const CREDIT_CARD = 'credit_card';
-    
-    /**
-     * Debit card payment method.
-     *
-     * @var string
-     */
-    public const DEBIT_CARD = 'debit_card';
-    
-    /**
-     * Mobile money payment method.
-     *
-     * @var string
-     */
-    public const MOBILE_MONEY = 'mobile_money';
-    
-    /**
-     * Cheque payment method.
-     *
-     * @var string
-     */
-    public const CHEQUE = 'cheque';
-    
-    /**
-     * Get all available payment method options.
+     * Get all values as an array.
      *
      * @return array
      */
     public static function values(): array
     {
-        return [
-            self::CASH,
-            self::BANK_TRANSFER,
-            self::CREDIT_CARD,
-            self::DEBIT_CARD,
-            self::MOBILE_MONEY,
-            self::CHEQUE,
-        ];
+        return array_column(self::cases(), 'value');
     }
-    
+
     /**
-     * Get all payment method options with labels.
+     * Get a human-readable label for the enum value.
      *
-     * @return array
+     * @return string
      */
-    public static function options(): array
+    public function label(): string
     {
-        return [
+        return match($this) {
             self::CASH => 'Cash',
             self::BANK_TRANSFER => 'Bank Transfer',
             self::CREDIT_CARD => 'Credit Card',
             self::DEBIT_CARD => 'Debit Card',
             self::MOBILE_MONEY => 'Mobile Money',
             self::CHEQUE => 'Cheque',
-        ];
+            self::PAYSTACK => 'Paystack',
+        };
+    }
+
+    /**
+     * Get all enum values with their labels.
+     *
+     * @return array
+     */
+    public static function options(): array
+    {
+        return array_reduce(self::cases(), function ($carry, $enum) {
+            $carry[$enum->value] = $enum->label();
+            return $carry;
+        }, []);
     }
 }

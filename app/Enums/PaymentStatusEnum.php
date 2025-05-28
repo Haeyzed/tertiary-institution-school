@@ -4,77 +4,55 @@ namespace App\Enums;
 
 /**
  * Class PaymentStatusEnum
- * 
- * Represents the payment status options available in the system.
- * 
+ *
+ * Represents payment status options in the system.
+ *
  * @package App\Enums
  */
-class PaymentStatusEnum
+enum PaymentStatusEnum: string
 {
+    case PENDING = 'pending';
+    case COMPLETED = 'completed';
+    case PARTIAL = 'partial';
+    case FAILED = 'failed';
+    case REFUNDED = 'refunded';
+
     /**
-     * Pending payment status.
-     *
-     * @var string
-     */
-    public const PENDING = 'pending';
-    
-    /**
-     * Completed payment status.
-     *
-     * @var string
-     */
-    public const COMPLETED = 'completed';
-    
-    /**
-     * Partial payment status.
-     *
-     * @var string
-     */
-    public const PARTIAL = 'partial';
-    
-    /**
-     * Failed payment status.
-     *
-     * @var string
-     */
-    public const FAILED = 'failed';
-    
-    /**
-     * Refunded payment status.
-     *
-     * @var string
-     */
-    public const REFUNDED = 'refunded';
-    
-    /**
-     * Get all available payment status options.
+     * Get all values as an array.
      *
      * @return array
      */
     public static function values(): array
     {
-        return [
-            self::PENDING,
-            self::COMPLETED,
-            self::PARTIAL,
-            self::FAILED,
-            self::REFUNDED,
-        ];
+        return array_column(self::cases(), 'value');
     }
-    
+
     /**
-     * Get all payment status options with labels.
+     * Get a human-readable label for the enum value.
      *
-     * @return array
+     * @return string
      */
-    public static function options(): array
+    public function label(): string
     {
-        return [
+        return match($this) {
             self::PENDING => 'Pending',
             self::COMPLETED => 'Completed',
             self::PARTIAL => 'Partial',
             self::FAILED => 'Failed',
             self::REFUNDED => 'Refunded',
-        ];
+        };
+    }
+
+    /**
+     * Get all enum values with their labels.
+     *
+     * @return array
+     */
+    public static function options(): array
+    {
+        return array_reduce(self::cases(), function ($carry, $enum) {
+            $carry[$enum->value] = $enum->label();
+            return $carry;
+        }, []);
     }
 }

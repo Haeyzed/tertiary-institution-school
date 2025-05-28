@@ -89,7 +89,7 @@ class Timetable extends Model
      */
     public function isOnMonday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::MONDAY);
+        return $this->isOnDay(DayOfWeekEnum::MONDAY->value);
     }
 
     /**
@@ -99,7 +99,7 @@ class Timetable extends Model
      */
     public function isOnTuesday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::TUESDAY);
+        return $this->isOnDay(DayOfWeekEnum::TUESDAY->value);
     }
 
     /**
@@ -109,7 +109,7 @@ class Timetable extends Model
      */
     public function isOnWednesday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::WEDNESDAY);
+        return $this->isOnDay(DayOfWeekEnum::WEDNESDAY->value);
     }
 
     /**
@@ -119,7 +119,7 @@ class Timetable extends Model
      */
     public function isOnThursday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::THURSDAY);
+        return $this->isOnDay(DayOfWeekEnum::THURSDAY->value);
     }
 
     /**
@@ -129,7 +129,7 @@ class Timetable extends Model
      */
     public function isOnFriday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::FRIDAY);
+        return $this->isOnDay(DayOfWeekEnum::FRIDAY->value);
     }
 
     /**
@@ -139,7 +139,7 @@ class Timetable extends Model
      */
     public function isOnSaturday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::SATURDAY);
+        return $this->isOnDay(DayOfWeekEnum::SATURDAY->value);
     }
 
     /**
@@ -149,6 +149,6 @@ class Timetable extends Model
      */
     public function isOnSunday(): bool
     {
-        return $this->isOnDay(DayOfWeekEnum::SUNDAY);
+        return $this->isOnDay(DayOfWeekEnum::SUNDAY->value);
     }
 }

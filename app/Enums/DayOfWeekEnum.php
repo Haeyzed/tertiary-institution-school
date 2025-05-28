@@ -4,88 +4,39 @@ namespace App\Enums;
 
 /**
  * Class DayOfWeekEnum
- * 
- * Represents the days of the week.
- * 
+ *
+ * Represents days of the week in the system.
+ *
  * @package App\Enums
  */
-class DayOfWeekEnum
+enum DayOfWeekEnum: string
 {
+    case MONDAY = 'monday';
+    case TUESDAY = 'tuesday';
+    case WEDNESDAY = 'wednesday';
+    case THURSDAY = 'thursday';
+    case FRIDAY = 'friday';
+    case SATURDAY = 'saturday';
+    case SUNDAY = 'sunday';
+
     /**
-     * Monday.
-     *
-     * @var string
-     */
-    public const MONDAY = 'monday';
-    
-    /**
-     * Tuesday.
-     *
-     * @var string
-     */
-    public const TUESDAY = 'tuesday';
-    
-    /**
-     * Wednesday.
-     *
-     * @var string
-     */
-    public const WEDNESDAY = 'wednesday';
-    
-    /**
-     * Thursday.
-     *
-     * @var string
-     */
-    public const THURSDAY = 'thursday';
-    
-    /**
-     * Friday.
-     *
-     * @var string
-     */
-    public const FRIDAY = 'friday';
-    
-    /**
-     * Saturday.
-     *
-     * @var string
-     */
-    public const SATURDAY = 'saturday';
-    
-    /**
-     * Sunday.
-     *
-     * @var string
-     */
-    public const SUNDAY = 'sunday';
-    
-    /**
-     * Get all available day of week options.
+     * Get all values as an array.
      *
      * @return array
      */
     public static function values(): array
     {
-        return [
-            self::MONDAY,
-            self::TUESDAY,
-            self::WEDNESDAY,
-            self::THURSDAY,
-            self::FRIDAY,
-            self::SATURDAY,
-            self::SUNDAY,
-        ];
+        return array_column(self::cases(), 'value');
     }
-    
+
     /**
-     * Get all day of week options with labels.
+     * Get a human-readable label for the enum value.
      *
-     * @return array
+     * @return string
      */
-    public static function options(): array
+    public function label(): string
     {
-        return [
+        return match($this) {
             self::MONDAY => 'Monday',
             self::TUESDAY => 'Tuesday',
             self::WEDNESDAY => 'Wednesday',
@@ -93,6 +44,19 @@ class DayOfWeekEnum
             self::FRIDAY => 'Friday',
             self::SATURDAY => 'Saturday',
             self::SUNDAY => 'Sunday',
-        ];
+        };
+    }
+
+    /**
+     * Get all enum values with their labels.
+     *
+     * @return array
+     */
+    public static function options(): array
+    {
+        return array_reduce(self::cases(), function ($carry, $enum) {
+            $carry[$enum->value] = $enum->label();
+            return $carry;
+        }, []);
     }
 }
