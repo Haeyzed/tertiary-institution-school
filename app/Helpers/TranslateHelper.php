@@ -16,7 +16,7 @@ class TranslateHelper
      *
      * @var GoogleTranslate
      */
-    protected static GoogleTranslate $translator;
+    protected static $translator;
 
     /**
      * Cache duration for translations in minutes.
@@ -130,13 +130,12 @@ class TranslateHelper
      * @return mixed The translated data
      */
     public static function translateData(
-        mixed   $data,
-        string  $targetLanguage,
-        array   $fieldsToTranslate = [],
+        $data,
+        string $targetLanguage,
+        array $fieldsToTranslate = [],
         ?string $sourceLanguage = null,
-        bool    $useCache = true
-    ): mixed
-    {
+        bool $useCache = true
+    ) {
         if (is_array($data)) {
             return static::translateArrayData($data, $targetLanguage, $fieldsToTranslate, $sourceLanguage, $useCache);
         }
@@ -191,13 +190,12 @@ class TranslateHelper
      * @return object
      */
     protected static function translateObjectData(
-        object  $data,
-        string  $targetLanguage,
-        array   $fieldsToTranslate,
+        $data,
+        string $targetLanguage,
+        array $fieldsToTranslate,
         ?string $sourceLanguage,
-        bool    $useCache
-    ): object
-    {
+        bool $useCache
+    ) {
         $dataArray = json_decode(json_encode($data), true);
         $translatedArray = static::translateArrayData($dataArray, $targetLanguage, $fieldsToTranslate, $sourceLanguage, $useCache);
 

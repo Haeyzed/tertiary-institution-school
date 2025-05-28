@@ -110,12 +110,19 @@ class ExamRequest extends BaseRequest
      */
     public function messages(): array
     {
+        // Get available status options dynamically
+        $availableStatuses = collect(ExamStatusEnum::cases())
+            ->map(fn($enum) => "'{$enum->value}' ({$enum->label()})")
+            ->join(', ');
         return [
             'course_id.exists' => 'The selected course does not exist.',
             'semester_id.exists' => 'The selected semester does not exist.',
             'end_time.after' => 'The end time must be after the start time.',
             'total_marks.min' => 'Total marks cannot be negative.',
-            'status.in' => 'Invalid exam status.',
+
+            'status.required' => 'The exam status is required.',
+            'status.string' => 'The exam status must be a valid string.',
+            'status.in' => "The selected exam status is invalid. Available options are: {$availableStatuses}.",
         ];
     }
 }

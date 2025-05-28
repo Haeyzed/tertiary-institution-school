@@ -26,13 +26,13 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Class DashboardMetricsService
+ * Class DashboardService
  *
  * Handles dashboard metrics and statistics.
  *
  * @package App\Services
  */
-class DashboardMetricsService
+class DashboardService
 {
     /**
      * Get general statistics.
@@ -331,13 +331,11 @@ class DashboardMetricsService
                 ];
             });
 
-        $activities = $recentPayments->concat($recentResults)->concat($recentExams)
+        return $recentPayments->concat($recentResults)->concat($recentExams)
             ->sortByDesc('date')
             ->take($limit)
             ->values()
             ->all();
-
-        return $activities;
     }
 
     /**

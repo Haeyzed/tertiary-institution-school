@@ -1,35 +1,27 @@
 <?php
 
-namespace App\Http\Controllers\API;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Services\DashboardMetricsService;
+use App\Services\DashboardService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-/**
- * Class DashboardController
- *
- * Handles dashboard related API endpoints.
- *
- * @package App\Http\Controllers\API
- */
 class DashboardController extends Controller
 {
     /**
      * The dashboard metrics service instance.
      *
-     * @var DashboardMetricsService
+     * @var DashboardService
      */
-    protected $dashboardMetricsService;
+    protected DashboardService $dashboardMetricsService;
 
     /**
      * Create a new controller instance.
      *
-     * @param DashboardMetricsService $dashboardMetricsService
+     * @param DashboardService $dashboardMetricsService
      * @return void
      */
-    public function __construct(DashboardMetricsService $dashboardMetricsService)
+    public function __construct(DashboardService $dashboardMetricsService)
     {
         $this->dashboardMetricsService = $dashboardMetricsService;
     }
