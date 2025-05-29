@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\ACLService;
 use App\Services\RoleService;
+use Exception;
 use Illuminate\Console\Command;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -50,7 +51,7 @@ class SetupRolesAndPermissions extends Command
             $this->info("\nCreated {$permissionsCount} permissions");
 
             return CommandAlias::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->error('Failed to set up roles and permissions: ' . $e->getMessage());
             return CommandAlias::FAILURE;
         }

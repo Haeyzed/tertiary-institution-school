@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\ValidationRule;
 
 class AssignRolesRequest extends BaseRequest
 {
@@ -17,7 +17,7 @@ class AssignRolesRequest extends BaseRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -35,7 +35,7 @@ class AssignRolesRequest extends BaseRequest
              * Each item must be a valid role ID.
              *
              * Checks existence in the roles table.
-             * @var int $roles.*
+             * @var int $roles .*
              * @example 1
              */
             'roles.*' => 'exists:roles,id',

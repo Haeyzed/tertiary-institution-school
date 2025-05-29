@@ -4,11 +4,11 @@ namespace App\Services;
 
 use App\Models\Staff;
 use App\Models\User;
+use Exception;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Collection;
-use Exception;
 use Throwable;
 
 class StaffService

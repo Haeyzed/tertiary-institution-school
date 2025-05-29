@@ -9,16 +9,17 @@ use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
 use App\Http\Requests\ProfilePhotoRequest;
-use App\Http\Resources\UserResource;
 use App\Http\Resources\UploadResource;
+use App\Http\Resources\UserResource;
 use App\Services\AuthService;
+use Exception;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use InvalidArgumentException;
-use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use InvalidArgumentException;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 
 /**
  * @tags Auth
@@ -33,16 +34,6 @@ class AuthController extends Controller implements HasMiddleware
     protected AuthService $authService;
 
     /**
-     * Get the middleware that should be assigned to the controller.
-     */
-    public static function middleware(): array
-    {
-        return [
-            new Middleware('auth:api', except: ['login', 'register', 'forgotPassword', 'resetPassword', 'verifyEmail']),
-        ];
-    }
-
-    /**
      * Create a new controller instance.
      *
      * @param AuthService $authService
@@ -51,6 +42,16 @@ class AuthController extends Controller implements HasMiddleware
     public function __construct(AuthService $authService)
     {
         $this->authService = $authService;
+    }
+
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth:api', except: ['login', 'register', 'forgotPassword', 'resetPassword', 'verifyEmail']),
+        ];
     }
 
     /**
@@ -193,7 +194,7 @@ class AuthController extends Controller implements HasMiddleware
                 'thumbnails' => $result['thumbnails'],
             ], 'Profile photo uploaded successfully');
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->error(
                 $e->getMessage(),
                 null,
@@ -217,7 +218,7 @@ class AuthController extends Controller implements HasMiddleware
                 'Profile photo removed successfully'
             );
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->error(
                 $e->getMessage(),
                 null,

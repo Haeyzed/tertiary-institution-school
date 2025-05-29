@@ -34,24 +34,6 @@ class PermissionService
     }
 
     /**
-     * Get a user by ID.
-     *
-     * @param int $id
-     * @param array $relations
-     * @return Permission|null
-     */
-    public function getPermissionById(int $id, array $relations = []): ?Permission
-    {
-        $query = Permission::query();
-
-        if (!empty($relations)) {
-            $query->with($relations);
-        }
-
-        return $query->find($id);
-    }
-
-    /**
      * Get a permission by name.
      *
      * @param string $name
@@ -114,6 +96,24 @@ class PermissionService
         }
 
         return $permission->fresh('roles');
+    }
+
+    /**
+     * Get a user by ID.
+     *
+     * @param int $id
+     * @param array $relations
+     * @return Permission|null
+     */
+    public function getPermissionById(int $id, array $relations = []): ?Permission
+    {
+        $query = Permission::query();
+
+        if (!empty($relations)) {
+            $query->with($relations);
+        }
+
+        return $query->find($id);
     }
 
     /**

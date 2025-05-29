@@ -26,6 +26,16 @@ class Announcement extends Model
     ];
 
     /**
+     * Get the user that created the announcement.
+     *
+     * @return BelongsTo
+     */
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -35,15 +45,5 @@ class Announcement extends Model
         return [
             'date' => 'date',
         ];
-    }
-
-    /**
-     * Get the user that created the announcement.
-     *
-     * @return BelongsTo
-     */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
     }
 }

@@ -3,12 +3,11 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Services\UploadService;
 use Exception;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Hash;
 use InvalidArgumentException;
 use Log;
 
@@ -57,24 +56,6 @@ class UserService
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
-    }
-
-    /**
-     * Get a user by ID.
-     *
-     * @param int $id
-     * @param array $relations
-     * @return User|null
-     */
-    public function getUserById(int $id, array $relations = []): ?User
-    {
-        $query = User::query();
-
-        if (!empty($relations)) {
-            $query->with($relations);
-        }
-
-        return $query->find($id);
     }
 
     /**
@@ -231,6 +212,45 @@ class UserService
     }
 
     /**
+     * Get user uploads
+     *
+     * @param int $userId
+     * @param int|null $perPage
+     * @param string|null $fileType
+     * @param string|null $disk
+     * @return Collection|LengthAwarePaginator
+     * @throws Exception
+     */
+    public function getUserUploads(int $userId, ?int $perPage = null, ?string $fileType = null, ?string $disk = null): Collection|LengthAwarePaginator
+    {
+        $user = $this->getUserById($userId);
+
+        if (!$user) {
+            throw new Exception('User not found');
+        }
+
+        return $this->uploadService->getUserUploads($user, $perPage, $fileType, $disk);
+    }
+
+    /**
+     * Get a user by ID.
+     *
+     * @param int $id
+     * @param array $relations
+     * @return User|null
+     */
+    public function getUserById(int $id, array $relations = []): ?User
+    {
+        $query = User::query();
+
+        if (!empty($relations)) {
+            $query->with($relations);
+        }
+
+        return $query->find($id);
+    }
+
+    /**
      * Search users by name or email.
      *
      * @param string $term
@@ -243,8 +263,8 @@ class UserService
     {
         $query = User::query()
             ->where(function ($q) use ($term) {
-                $q->whereLike('name',  "%$term%")
-                    ->orwhereLike('email',  "%$term%");
+                $q->whereLike('name', "%$term%")
+                    ->orwhereLike('email', "%$term%");
             });
 
         if ($userType) {
@@ -314,27 +334,6 @@ class UserService
         $this->uploadService->deleteUserProfilePhoto($user);
 
         return $user->fresh();
-    }
-
-    /**
-     * Get user uploads
-     *
-     * @param int $userId
-     * @param int|null $perPage
-     * @param string|null $fileType
-     * @param string|null $disk
-     * @return Collection|LengthAwarePaginator
-     * @throws Exception
-     */
-    public function getUserUploads(int $userId, ?int $perPage = null, ?string $fileType = null, ?string $disk = null): Collection|LengthAwarePaginator
-    {
-        $user = $this->getUserById($userId);
-
-        if (!$user) {
-            throw new Exception('User not found');
-        }
-
-        return $this->uploadService->getUserUploads($user, $perPage, $fileType, $disk);
     }
 
     /**

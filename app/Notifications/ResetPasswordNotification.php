@@ -4,7 +4,6 @@ namespace App\Notifications;
 
 use Closure;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Lang;
@@ -14,25 +13,23 @@ class ResetPasswordNotification extends Notification //implements ShouldQueue
     use Queueable;
 
     /**
-     * The password reset token.
-     *
-     * @var string
-     */
-    public string $token;
-
-    /**
      * The callback that should be used to create the reset password URL.
      *
      * @var Closure|null
      */
     public static ?Closure $createUrlCallback = null;
-
     /**
      * The callback that should be used to build the mail message.
      *
      * @var Closure|null
      */
     public static ?Closure $toMailCallback = null;
+    /**
+     * The password reset token.
+     *
+     * @var string
+     */
+    public string $token;
 
     /**
      * Create a new notification instance.
@@ -43,6 +40,28 @@ class ResetPasswordNotification extends Notification //implements ShouldQueue
     public function __construct(string $token)
     {
         $this->token = $token;
+    }
+
+    /**
+     * Set a callback that should be used when creating the reset password button URL.
+     *
+     * @param Closure $callback
+     * @return void
+     */
+    public static function createUrlUsing(Closure $callback): void
+    {
+        static::$createUrlCallback = $callback;
+    }
+
+    /**
+     * Set a callback that should be used when building the notification mail message.
+     *
+     * @param Closure $callback
+     * @return void
+     */
+    public static function toMailUsing(Closure $callback): void
+    {
+        static::$toMailCallback = $callback;
     }
 
     /**
@@ -83,7 +102,7 @@ class ResetPasswordNotification extends Notification //implements ShouldQueue
             ->subject(Lang::get('Reset Password Notification'))
             ->markdown('emails.auth.reset-password', [
                 'url' => $url,
-                'count' => config('auth.passwords.'.config('auth.defaults.passwords').'.expire'),
+                'count' => config('auth.passwords.' . config('auth.defaults.passwords') . '.expire'),
                 'user' => $this->notifiable ?? null,
             ]);
     }
@@ -116,27 +135,5 @@ class ResetPasswordNotification extends Notification //implements ShouldQueue
         $queryString = http_build_query($params);
 
         return $frontendUrl . $resetPath . '?' . $queryString;
-    }
-
-    /**
-     * Set a callback that should be used when creating the reset password button URL.
-     *
-     * @param Closure $callback
-     * @return void
-     */
-    public static function createUrlUsing(Closure $callback): void
-    {
-        static::$createUrlCallback = $callback;
-    }
-
-    /**
-     * Set a callback that should be used when building the notification mail message.
-     *
-     * @param Closure $callback
-     * @return void
-     */
-    public static function toMailUsing(Closure $callback): void
-    {
-        static::$toMailCallback = $callback;
     }
 }

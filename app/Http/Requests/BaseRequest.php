@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Helpers\TranslateHelper;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\Exceptions\HttpResponseException;
@@ -27,7 +28,7 @@ abstract class BaseRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     abstract public function rules(): array;
 
@@ -49,6 +50,27 @@ abstract class BaseRequest extends FormRequest
     public function attributes(): array
     {
         return [];
+    }
+
+    /**
+     * Get the validated data from the request with optional translation.
+     *
+     * @param array|null $key
+     * @param mixed $default
+     * @param string|null $language
+     * @return array|mixed
+     */
+    public function validated($key = null, $default = null, $language = null): mixed
+    {
+        $validated = parent::validated($key, $default);
+
+        if ($language && $language !== 'en' && is_array($validated)) {
+            // Define fields that should be translated
+            $fieldsToTranslate = ['message', 'title', 'description', 'name', 'remark', 'remarks'];
+            $validated = TranslateHelper::translateData($validated, $language, $fieldsToTranslate);
+        }
+
+        return $validated;
     }
 
     /**
@@ -122,26 +144,5 @@ abstract class BaseRequest extends FormRequest
         }
 
         return $translatedErrors;
-    }
-
-    /**
-     * Get the validated data from the request with optional translation.
-     *
-     * @param array|null $key
-     * @param mixed $default
-     * @param string|null $language
-     * @return array|mixed
-     */
-    public function validated($key = null, $default = null, $language = null): mixed
-    {
-        $validated = parent::validated($key, $default);
-
-        if ($language && $language !== 'en' && is_array($validated)) {
-            // Define fields that should be translated
-            $fieldsToTranslate = ['message', 'title', 'description', 'name', 'remark', 'remarks'];
-            $validated = TranslateHelper::translateData($validated, $language, $fieldsToTranslate);
-        }
-
-        return $validated;
     }
 }

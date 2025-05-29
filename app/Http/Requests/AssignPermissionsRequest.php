@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\ValidationRule;
 
 class AssignPermissionsRequest extends BaseRequest
 {
@@ -17,7 +17,7 @@ class AssignPermissionsRequest extends BaseRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -35,7 +35,7 @@ class AssignPermissionsRequest extends BaseRequest
              * Each item must be a valid permission ID.
              *
              * Checks existence in the permissions table.
-             * @var int $permissions.*
+             * @var int $permissions .*
              * @example 1
              */
             'permissions.*' => 'exists:permissions,id',

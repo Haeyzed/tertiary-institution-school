@@ -29,19 +29,6 @@ class Timetable extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'start_time' => 'datetime',
-            'end_time' => 'datetime',
-        ];
-    }
-
-    /**
      * Get the course that owns the timetable.
      *
      * @return BelongsTo
@@ -72,6 +59,16 @@ class Timetable extends Model
     }
 
     /**
+     * Check if the timetable is on Monday.
+     *
+     * @return bool
+     */
+    public function isOnMonday(): bool
+    {
+        return $this->isOnDay(DayOfWeekEnum::MONDAY->value);
+    }
+
+    /**
      * Check if the timetable is on a specific day.
      *
      * @param string $day
@@ -80,16 +77,6 @@ class Timetable extends Model
     public function isOnDay(string $day): bool
     {
         return $this->day === $day;
-    }
-
-    /**
-     * Check if the timetable is on Monday.
-     *
-     * @return bool
-     */
-    public function isOnMonday(): bool
-    {
-        return $this->isOnDay(DayOfWeekEnum::MONDAY->value);
     }
 
     /**
@@ -150,5 +137,18 @@ class Timetable extends Model
     public function isOnSunday(): bool
     {
         return $this->isOnDay(DayOfWeekEnum::SUNDAY->value);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'start_time' => 'datetime',
+            'end_time' => 'datetime',
+        ];
     }
 }

@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Upload;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\Console\Command\Command as CommandAlias;
 
 class CleanupOrphanedFiles extends Command
 {
@@ -39,7 +40,7 @@ class CleanupOrphanedFiles extends Command
 
         $this->info('Cleanup process completed!');
 
-        return Command::SUCCESS;
+        return CommandAlias::SUCCESS;
     }
 
     /**

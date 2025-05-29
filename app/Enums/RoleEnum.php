@@ -22,23 +22,6 @@ enum RoleEnum: string
     }
 
     /**
-     * Get human-readable name for the role
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::SUPER_ADMIN => 'Super Administrator',
-            self::ADMIN => 'Administrator',
-            self::STAFF => 'Staff Member',
-            self::TEACHER => 'Teacher',
-            self::STUDENT => 'Student',
-            self::PARENT => 'Parent',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -52,13 +35,30 @@ enum RoleEnum: string
     }
 
     /**
+     * Get human-readable name for the role
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::SUPER_ADMIN => 'Super Administrator',
+            self::ADMIN => 'Administrator',
+            self::STAFF => 'Staff Member',
+            self::TEACHER => 'Teacher',
+            self::STUDENT => 'Student',
+            self::PARENT => 'Parent',
+        };
+    }
+
+    /**
      * Get default permissions for this role
      *
      * @return array<string>
      */
     public function getDefaultPermissions(): array
     {
-        return match($this) {
+        return match ($this) {
             self::SUPER_ADMIN => ['*'], // All permissions
             self::ADMIN => [
                 'view-dashboard-metrics',

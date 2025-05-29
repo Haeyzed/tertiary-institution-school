@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfilePhotoRequest;
+use App\Http\Resources\UploadResource;
 use App\Http\Resources\UserResource;
+use App\Models\Upload;
 use App\Services\FileStorageService;
+use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -61,7 +64,7 @@ class UserProfileController extends Controller
 
             // Delete old profile photo if exists
             if ($user->photo) {
-                $oldUpload = \App\Models\Upload::where('user_id', $user->id)
+                $oldUpload = Upload::where('user_id', $user->id)
                     ->where('file_path', $user->photo)
                     ->first();
 
@@ -75,7 +78,7 @@ class UserProfileController extends Controller
 
             return response()->success([
                 'user' => new UserResource($user),
-                'upload' => new \App\Http\Resources\UploadResource($upload),
+                'upload' => new UploadResource($upload),
                 'photo_url' => $upload->public_url,
                 'thumbnails' => [
                     'thumb' => $this->fileStorageService->getThumbnailUrl($upload, 'thumb'),
@@ -84,7 +87,7 @@ class UserProfileController extends Controller
                 ],
             ], 'Profile photo uploaded successfully');
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->error(
                 'Profile photo upload failed: ' . $e->getMessage(),
                 null,
@@ -108,7 +111,7 @@ class UserProfileController extends Controller
             }
 
             // Find and delete the upload record
-            $upload = \App\Models\Upload::where('user_id', $user->id)
+            $upload = Upload::where('user_id', $user->id)
                 ->where('file_path', $user->photo)
                 ->first();
 
@@ -124,7 +127,7 @@ class UserProfileController extends Controller
                 'Profile photo removed successfully'
             );
 
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return response()->error(
                 'Profile photo removal failed: ' . $e->getMessage(),
                 null,
@@ -145,7 +148,7 @@ class UserProfileController extends Controller
 
         // Add photo URLs if user has a profile photo
         if ($user->photo) {
-            $upload = \App\Models\Upload::where('user_id', $user->id)
+            $upload = Upload::where('user_id', $user->id)
                 ->where('file_path', $user->photo)
                 ->first();
 

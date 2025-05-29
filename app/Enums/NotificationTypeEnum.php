@@ -27,21 +27,6 @@ enum NotificationTypeEnum: string
     }
 
     /**
-     * Get a human-readable label for the enum value.
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::GENERAL => 'General',
-            self::ACADEMIC => 'Academic',
-            self::FINANCIAL => 'Financial',
-            self::ALERT => 'Alert',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -52,5 +37,20 @@ enum NotificationTypeEnum: string
             $carry[$enum->value] = $enum->label();
             return $carry;
         }, []);
+    }
+
+    /**
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::GENERAL => 'General',
+            self::ACADEMIC => 'Academic',
+            self::FINANCIAL => 'Financial',
+            self::ALERT => 'Alert',
+        };
     }
 }

@@ -5,9 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\PermissionRequest;
 use App\Http\Resources\PermissionResource;
 use App\Services\PermissionService;
-use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 /**
  * Class PermissionController

@@ -32,21 +32,6 @@ class Exam extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'exam_date' => 'date',
-            'start_time' => 'datetime',
-            'end_time' => 'datetime',
-            'total_marks' => 'decimal:2',
-        ];
-    }
-
-    /**
      * Get the course that owns the exam.
      *
      * @return BelongsTo
@@ -77,6 +62,16 @@ class Exam extends Model
     }
 
     /**
+     * Check if the exam is pending.
+     *
+     * @return bool
+     */
+    public function isPending(): bool
+    {
+        return $this->hasStatus(ExamStatusEnum::PENDING->value);
+    }
+
+    /**
      * Check if the exam has a specific status.
      *
      * @param string $status
@@ -85,16 +80,6 @@ class Exam extends Model
     public function hasStatus(string $status): bool
     {
         return $this->status === $status;
-    }
-
-    /**
-     * Check if the exam is pending.
-     *
-     * @return bool
-     */
-    public function isPending(): bool
-    {
-        return $this->hasStatus(ExamStatusEnum::PENDING->value);
     }
 
     /**
@@ -125,5 +110,20 @@ class Exam extends Model
     public function isCancelled(): bool
     {
         return $this->hasStatus(ExamStatusEnum::CANCELLED->value);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'exam_date' => 'date',
+            'start_time' => 'datetime',
+            'end_time' => 'datetime',
+            'total_marks' => 'decimal:2',
+        ];
     }
 }

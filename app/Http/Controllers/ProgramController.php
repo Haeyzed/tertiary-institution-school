@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProgramRequest;
 use App\Http\Resources\ProgramResource;
 use App\Services\ProgramService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProgramController extends Controller
 {

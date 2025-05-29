@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\GenderEnum;
+use App\Enums\RoleEnum;
 use App\Enums\UserTypeEnum;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\VerifyEmailNotification;
@@ -49,20 +50,6 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
         'password',
         'remember_token',
     ];
-
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'user_type' => UserTypeEnum::class,
-        ];
-    }
 
     /**
      * Get the staff record associated with the user.
@@ -115,6 +102,16 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
     }
 
     /**
+     * Check if the user is male.
+     *
+     * @return bool
+     */
+    public function isMale(): bool
+    {
+        return $this->hasGender(GenderEnum::MALE->value);
+    }
+
+    /**
      * Check if the user has a specific gender.
      *
      * @param string $gender
@@ -123,16 +120,6 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
     public function hasGender(string $gender): bool
     {
         return $this->gender === $gender;
-    }
-
-    /**
-     * Check if the user is male.
-     *
-     * @return bool
-     */
-    public function isMale(): bool
-    {
-        return $this->hasGender(GenderEnum::MALE->value);
     }
 
     /**
@@ -162,7 +149,7 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
      */
     public function isSuperAdmin(): bool
     {
-        return $this->hasRole('super-admin');
+        return $this->hasRole(RoleEnum::SUPER_ADMIN->value);
     }
 
     /**
@@ -220,5 +207,19 @@ class User extends Authenticatable implements JWTSubject, MustVerifyEmail
     public function getAllUniquePermissions(): Collection
     {
         return $this->getAllPermissions()->unique('id');
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'user_type' => UserTypeEnum::class,
+        ];
     }
 }

@@ -5,8 +5,9 @@ namespace App\Services;
 use App\Enums\RoleEnum;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use ValueError;
 
 /**
  * Class RoleService
@@ -33,24 +34,6 @@ class RoleService
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
-    }
-
-    /**
-     * Get a role by ID.
-     *
-     * @param int $id
-     * @param array $relations
-     * @return Role|null
-     */
-    public function getRoleById(int $id, array $relations = []): ?Role
-    {
-        $query = Role::query();
-
-        if (!empty($relations)) {
-            $query->with($relations);
-        }
-
-        return $query->find($id);
     }
 
     /**
@@ -121,6 +104,24 @@ class RoleService
     }
 
     /**
+     * Get a role by ID.
+     *
+     * @param int $id
+     * @param array $relations
+     * @return Role|null
+     */
+    public function getRoleById(int $id, array $relations = []): ?Role
+    {
+        $query = Role::query();
+
+        if (!empty($relations)) {
+            $query->with($relations);
+        }
+
+        return $query->find($id);
+    }
+
+    /**
      * Delete a role
      *
      * @param int $id
@@ -164,21 +165,6 @@ class RoleService
     }
 
     /**
-     * Create default roles for the system
-     *
-     * @return void
-     */
-    public function createDefaultRoles(): void
-    {
-        foreach (RoleEnum::cases() as $role) {
-            Role::query()->firstOrCreate([
-                'name' => $role->value,
-                'guard_name' => 'api',
-            ]);
-        }
-    }
-
-    /**
      * Create default roles and assign default permissions
      *
      * @return void
@@ -204,6 +190,21 @@ class RoleService
     }
 
     /**
+     * Create default roles for the system
+     *
+     * @return void
+     */
+    public function createDefaultRoles(): void
+    {
+        foreach (RoleEnum::cases() as $role) {
+            Role::query()->firstOrCreate([
+                'name' => $role->value,
+                'guard_name' => 'api',
+            ]);
+        }
+    }
+
+    /**
      * Get default permissions for a role
      *
      * @param string $roleName
@@ -214,7 +215,7 @@ class RoleService
         try {
             $roleEnum = RoleEnum::from($roleName);
             return $roleEnum->getDefaultPermissions();
-        } catch (\ValueError $e) {
+        } catch (ValueError $e) {
             return [];
         }
     }

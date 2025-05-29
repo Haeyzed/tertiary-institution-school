@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\AssignRolesRequest;
 use App\Http\Requests\AssignPermissionsRequest;
-use App\Http\Resources\RoleResource;
+use App\Http\Requests\AssignRolesRequest;
 use App\Http\Resources\PermissionResource;
+use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Services\ACLService;
 use Exception;

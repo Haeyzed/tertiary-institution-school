@@ -3,12 +3,11 @@
 namespace App\Services;
 
 use App\Enums\PaymentStatusEnum;
-use App\Models\Payment;
 use App\Models\Fee;
+use App\Models\Payment;
 use App\Models\Student;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class PaymentService
 {
@@ -62,6 +61,35 @@ class PaymentService
         $this->updatePaymentStatus($payment);
 
         return $payment;
+    }
+
+    /**
+     * Update payment status based on amount paid vs fee amount.
+     *
+     * @param Payment $payment
+     * @return void
+     */
+    private function updatePaymentStatus(Payment $payment): void
+    {
+        $fee = Fee::query()->find($payment->fee_id);
+
+        if (!$fee) {
+            return;
+        }
+
+        // Get total payments for this fee by this student
+        $totalPaid = Payment::query()->where([
+            'student_id' => $payment->student_id,
+            'fee_id' => $payment->fee_id,
+        ])->sum('amount_paid');
+
+        if ($totalPaid >= $fee->amount) {
+            $payment->update(['status' => PaymentStatusEnum::COMPLETED]);
+        } elseif ($totalPaid > 0) {
+            $payment->update(['status' => PaymentStatusEnum::PARTIAL]);
+        } else {
+            $payment->update(['status' => PaymentStatusEnum::PENDING]);
+        }
     }
 
     /**
@@ -178,34 +206,5 @@ class PaymentService
             'total_paid' => $totalPaid,
             'balance' => $totalFees - $totalPaid,
         ];
-    }
-
-    /**
-     * Update payment status based on amount paid vs fee amount.
-     *
-     * @param Payment $payment
-     * @return void
-     */
-    private function updatePaymentStatus(Payment $payment): void
-    {
-        $fee = Fee::query()->find($payment->fee_id);
-
-        if (!$fee) {
-            return;
-        }
-
-        // Get total payments for this fee by this student
-        $totalPaid = Payment::query()->where([
-            'student_id' => $payment->student_id,
-            'fee_id' => $payment->fee_id,
-        ])->sum('amount_paid');
-
-        if ($totalPaid >= $fee->amount) {
-            $payment->update(['status' => PaymentStatusEnum::COMPLETED]);
-        } elseif ($totalPaid > 0) {
-            $payment->update(['status' => PaymentStatusEnum::PARTIAL]);
-        } else {
-            $payment->update(['status' => PaymentStatusEnum::PENDING]);
-        }
     }
 }

@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\UserRequest;
 use App\Http\Requests\ProfilePhotoRequest;
-use App\Http\Resources\UserResource;
+use App\Http\Requests\UserRequest;
 use App\Http\Resources\UploadResource;
+use App\Http\Resources\UserResource;
 use App\Services\ACLService;
 use App\Services\UserService;
 use Exception;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
@@ -42,24 +42,6 @@ class UserController extends Controller
         $this->userService = $userService;
         $this->aclService = $aclService;
         $this->middleware('auth:api');
-    }
-
-    /**
-     * Check if the authenticated user has the required permission.
-     *
-     * @param string $permission
-     * @return bool
-     */
-    protected function checkPermission(string $permission): bool
-    {
-        $user = Auth::user();
-
-        // Super admins have all permissions
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        return $user->hasPermissionTo($permission);
     }
 
     /**
@@ -95,6 +77,24 @@ class UserController extends Controller
             UserResource::collection($users),
             'Users retrieved successfully'
         );
+    }
+
+    /**
+     * Check if the authenticated user has the required permission.
+     *
+     * @param string $permission
+     * @return bool
+     */
+    protected function checkPermission(string $permission): bool
+    {
+        $user = Auth::user();
+
+        // Super admins have all permissions
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $user->hasPermissionTo($permission);
     }
 
     /**

@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\DepartmentRequest;
 use App\Http\Resources\DepartmentResource;
 use App\Services\DepartmentService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
 {

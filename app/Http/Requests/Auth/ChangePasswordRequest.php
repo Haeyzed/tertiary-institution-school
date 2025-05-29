@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Http\Requests\BaseRequest;
+use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
  * Request validation for password change.
@@ -14,7 +15,7 @@ class ChangePasswordRequest extends BaseRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

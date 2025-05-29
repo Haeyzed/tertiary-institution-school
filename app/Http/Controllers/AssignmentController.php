@@ -7,8 +7,8 @@ use App\Http\Requests\StudentAssignmentRequest;
 use App\Http\Resources\AssignmentResource;
 use App\Http\Resources\StudentAssignmentResource;
 use App\Services\AssignmentService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AssignmentController extends Controller
 {

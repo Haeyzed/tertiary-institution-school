@@ -2,11 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Result;
 use App\Models\Grade;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\Result;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ResultService
 {
@@ -63,6 +62,19 @@ class ResultService
         }
 
         return Result::query()->create($data);
+    }
+
+    /**
+     * Determine grade based on score.
+     *
+     * @param float $score
+     * @return Grade|null
+     */
+    private function determineGrade(float $score): ?Grade
+    {
+        return Grade::query()->where('min_score', '<=', $score)
+            ->where('max_score', '>=', $score)
+            ->first();
     }
 
     /**
@@ -205,6 +217,30 @@ class ResultService
     }
 
     /**
+     * Get grade point value.
+     *
+     * @param Grade|null $grade
+     * @return float
+     */
+    private function getGradePoint(?Grade $grade): float|int
+    {
+        if (!$grade) {
+            return 0;
+        }
+
+        // This is a simplified example. You should adjust based on your grading system
+        // For example, you might have a 'point' column in your grades table
+        return match ($grade->grade) {
+            'A' => 4.0,
+            'B' => 3.0,
+            'C' => 2.0,
+            'D' => 1.0,
+            'F' => 0.0,
+            default => 0.0,
+        };
+    }
+
+    /**
      * Get student's cumulative GPA.
      *
      * @param int $studentId
@@ -236,42 +272,5 @@ class ResultService
         }
 
         return round($totalPoints / $totalCreditHours, 2);
-    }
-
-    /**
-     * Determine grade based on score.
-     *
-     * @param float $score
-     * @return Grade|null
-     */
-    private function determineGrade(float $score): ?Grade
-    {
-        return Grade::query()->where('min_score', '<=', $score)
-            ->where('max_score', '>=', $score)
-            ->first();
-    }
-
-    /**
-     * Get grade point value.
-     *
-     * @param Grade|null $grade
-     * @return float
-     */
-    private function getGradePoint(?Grade $grade): float|int
-    {
-        if (!$grade) {
-            return 0;
-        }
-
-        // This is a simplified example. You should adjust based on your grading system
-        // For example, you might have a 'point' column in your grades table
-        return match ($grade->grade) {
-            'A' => 4.0,
-            'B' => 3.0,
-            'C' => 2.0,
-            'D' => 1.0,
-            'F' => 0.0,
-            default => 0.0,
-        };
     }
 }

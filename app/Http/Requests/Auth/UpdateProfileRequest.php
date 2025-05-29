@@ -3,9 +3,10 @@
 namespace App\Http\Requests\Auth;
 
 use App\Enums\GenderEnum;
-use App\Enums\UserTypeEnum;
 use App\Http\Requests\BaseRequest;
 use App\Models\User;
+use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,7 +17,7 @@ class UpdateProfileRequest extends BaseRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -89,7 +90,7 @@ class UpdateProfileRequest extends BaseRequest
             /**
              * The profile photo file.
              *
-             * @var \Illuminate\Http\UploadedFile|null $photo
+             * @var UploadedFile|null $photo
              */
             'photo' => [
                 'sometimes',

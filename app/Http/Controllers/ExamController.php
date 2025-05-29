@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ExamRequest;
 use App\Http\Resources\ExamResource;
 use App\Services\ExamService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ExamController extends Controller
 {

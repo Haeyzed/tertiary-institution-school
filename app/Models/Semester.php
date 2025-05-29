@@ -28,19 +28,6 @@ class Semester extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'start_date' => 'date',
-            'end_date' => 'date',
-        ];
-    }
-
-    /**
      * Get the academic session that owns the semester.
      *
      * @return BelongsTo
@@ -110,5 +97,18 @@ class Semester extends Model
     public function fees(): HasMany
     {
         return $this->hasMany(Fee::class);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'start_date' => 'date',
+            'end_date' => 'date',
+        ];
     }
 }

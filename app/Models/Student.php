@@ -32,18 +32,6 @@ class Student extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'admission_date' => 'date',
-        ];
-    }
-
-    /**
      * Get the user that owns the student.
      *
      * @return BelongsTo
@@ -116,6 +104,16 @@ class Student extends Model
     }
 
     /**
+     * Check if the student is active.
+     *
+     * @return bool
+     */
+    public function isActive(): bool
+    {
+        return $this->hasStatus(StudentStatusEnum::ACTIVE);
+    }
+
+    /**
      * Check if the student has a specific status.
      *
      * @param string $status
@@ -124,16 +122,6 @@ class Student extends Model
     public function hasStatus(string $status): bool
     {
         return $this->status === $status;
-    }
-
-    /**
-     * Check if the student is active.
-     *
-     * @return bool
-     */
-    public function isActive(): bool
-    {
-        return $this->hasStatus(StudentStatusEnum::ACTIVE);
     }
 
     /**
@@ -164,5 +152,17 @@ class Student extends Model
     public function isSuspended(): bool
     {
         return $this->hasStatus(StudentStatusEnum::SUSPENDED);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'admission_date' => 'date',
+        ];
     }
 }

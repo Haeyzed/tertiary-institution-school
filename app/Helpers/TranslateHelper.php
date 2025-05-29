@@ -2,9 +2,10 @@
 
 namespace App\Helpers;
 
-use Stichoza\GoogleTranslate\GoogleTranslate;
+use Exception;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Stichoza\GoogleTranslate\GoogleTranslate;
 
 /**
  * Helper class for translating text using Google Translate.
@@ -26,17 +27,32 @@ class TranslateHelper
     protected static int $cacheDuration = 1440; // 24 hours
 
     /**
-     * Get or create the Google Translate instance.
+     * Translate an array of texts.
      *
-     * @return GoogleTranslate
+     * @param array $texts Array of texts to translate
+     * @param string $targetLanguage The target language code
+     * @param string|null $sourceLanguage The source language code
+     * @param bool $useCache Whether to use caching
+     * @return array Array of translated texts
      */
-    protected static function getTranslator(): GoogleTranslate
+    public static function translateArray(
+        array   $texts,
+        string  $targetLanguage,
+        ?string $sourceLanguage = null,
+        bool    $useCache = true
+    ): array
     {
-        if (!static::$translator) {
-            static::$translator = new GoogleTranslate();
+        $translatedTexts = [];
+
+        foreach ($texts as $key => $text) {
+            if (is_string($text)) {
+                $translatedTexts[$key] = static::translate($text, $targetLanguage, $sourceLanguage, $useCache);
+            } else {
+                $translatedTexts[$key] = $text;
+            }
         }
 
-        return static::$translator;
+        return $translatedTexts;
     }
 
     /**
@@ -49,11 +65,12 @@ class TranslateHelper
      * @return string The translated text
      */
     public static function translate(
-        string $text,
-        string $targetLanguage,
+        string  $text,
+        string  $targetLanguage,
         ?string $sourceLanguage = null,
-        bool $useCache = true
-    ): string {
+        bool    $useCache = true
+    ): string
+    {
         if (empty($text)) {
             return $text;
         }
@@ -79,7 +96,7 @@ class TranslateHelper
             }
 
             return $translatedText;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Translation failed: ' . $e->getMessage(), [
                 'text' => $text,
                 'target_language' => $targetLanguage,
@@ -92,31 +109,31 @@ class TranslateHelper
     }
 
     /**
-     * Translate an array of texts.
+     * Generate cache key for translation.
      *
-     * @param array $texts Array of texts to translate
-     * @param string $targetLanguage The target language code
-     * @param string|null $sourceLanguage The source language code
-     * @param bool $useCache Whether to use caching
-     * @return array Array of translated texts
+     * @param string $text
+     * @param string $targetLanguage
+     * @param string|null $sourceLanguage
+     * @return string
      */
-    public static function translateArray(
-        array $texts,
-        string $targetLanguage,
-        ?string $sourceLanguage = null,
-        bool $useCache = true
-    ): array {
-        $translatedTexts = [];
+    protected static function getCacheKey(string $text, string $targetLanguage, ?string $sourceLanguage): string
+    {
+        $source = $sourceLanguage ?? 'auto';
+        return 'translation:' . md5($text . $targetLanguage . $source);
+    }
 
-        foreach ($texts as $key => $text) {
-            if (is_string($text)) {
-                $translatedTexts[$key] = static::translate($text, $targetLanguage, $sourceLanguage, $useCache);
-            } else {
-                $translatedTexts[$key] = $text;
-            }
+    /**
+     * Get or create the Google Translate instance.
+     *
+     * @return GoogleTranslate
+     */
+    protected static function getTranslator(): GoogleTranslate
+    {
+        if (!static::$translator) {
+            static::$translator = new GoogleTranslate();
         }
 
-        return $translatedTexts;
+        return static::$translator;
     }
 
     /**
@@ -135,7 +152,8 @@ class TranslateHelper
         array $fieldsToTranslate = [],
         ?string $sourceLanguage = null,
         bool $useCache = true
-    ) {
+    )
+    {
         if (is_array($data)) {
             return static::translateArrayData($data, $targetLanguage, $fieldsToTranslate, $sourceLanguage, $useCache);
         }
@@ -158,12 +176,13 @@ class TranslateHelper
      * @return array
      */
     protected static function translateArrayData(
-        array $data,
-        string $targetLanguage,
-        array $fieldsToTranslate,
+        array   $data,
+        string  $targetLanguage,
+        array   $fieldsToTranslate,
         ?string $sourceLanguage,
-        bool $useCache
-    ): array {
+        bool    $useCache
+    ): array
+    {
         foreach ($data as $key => $value) {
             if (empty($fieldsToTranslate) || in_array($key, $fieldsToTranslate)) {
                 if (is_string($value)) {
@@ -195,25 +214,12 @@ class TranslateHelper
         array $fieldsToTranslate,
         ?string $sourceLanguage,
         bool $useCache
-    ) {
+    )
+    {
         $dataArray = json_decode(json_encode($data), true);
         $translatedArray = static::translateArrayData($dataArray, $targetLanguage, $fieldsToTranslate, $sourceLanguage, $useCache);
 
         return json_decode(json_encode($translatedArray));
-    }
-
-    /**
-     * Generate cache key for translation.
-     *
-     * @param string $text
-     * @param string $targetLanguage
-     * @param string|null $sourceLanguage
-     * @return string
-     */
-    protected static function getCacheKey(string $text, string $targetLanguage, ?string $sourceLanguage): string
-    {
-        $source = $sourceLanguage ?? 'auto';
-        return 'translation:' . md5($text . $targetLanguage . $source);
     }
 
     /**

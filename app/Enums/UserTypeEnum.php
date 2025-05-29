@@ -22,23 +22,6 @@ enum UserTypeEnum: string
     }
 
     /**
-     * Get human-readable name for the user type
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::SUPER_ADMIN => 'Super Administrator',
-            self::ADMIN => 'Administrator',
-            self::STAFF => 'Staff Member',
-            self::TEACHER => 'Teacher',
-            self::STUDENT => 'Student',
-            self::PARENT => 'Parent',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -52,13 +35,30 @@ enum UserTypeEnum: string
     }
 
     /**
+     * Get human-readable name for the user type
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::SUPER_ADMIN => 'Super Administrator',
+            self::ADMIN => 'Administrator',
+            self::STAFF => 'Staff Member',
+            self::TEACHER => 'Teacher',
+            self::STUDENT => 'Student',
+            self::PARENT => 'Parent',
+        };
+    }
+
+    /**
      * Get the corresponding role for this user type
      *
      * @return string
      */
     public function getDefaultRole(): string
     {
-        return match($this) {
+        return match ($this) {
             self::SUPER_ADMIN => RoleEnum::SUPER_ADMIN->value,
             self::ADMIN => RoleEnum::ADMIN->value,
             self::STAFF => RoleEnum::STAFF->value,

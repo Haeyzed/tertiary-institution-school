@@ -26,6 +26,16 @@ class AcademicSession extends Model
     ];
 
     /**
+     * Get the semesters for the academic session.
+     *
+     * @return HasMany
+     */
+    public function semesters(): HasMany
+    {
+        return $this->hasMany(Semester::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -37,15 +47,5 @@ class AcademicSession extends Model
             'end_date' => 'date',
             'is_current' => 'boolean',
         ];
-    }
-
-    /**
-     * Get the semesters for the academic session.
-     *
-     * @return HasMany
-     */
-    public function semesters(): HasMany
-    {
-        return $this->hasMany(Semester::class);
     }
 }

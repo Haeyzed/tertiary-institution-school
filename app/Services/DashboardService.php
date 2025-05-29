@@ -35,6 +35,26 @@ use Illuminate\Support\Facades\DB;
 class DashboardService
 {
     /**
+     * Get all dashboard metrics.
+     *
+     * @return array
+     */
+    public function getAllMetrics(): array
+    {
+        return [
+            'general' => $this->getGeneralStats(),
+            'students' => $this->getStudentStats(),
+            'staff' => $this->getStaffStats(),
+            'academic' => $this->getAcademicStats(),
+            'financial' => $this->getFinancialStats(),
+            'notifications' => $this->getNotificationStats(),
+            'performance' => $this->getPerformanceStats(),
+            'enrollment' => $this->getEnrollmentStats(),
+            'recent_activities' => $this->getRecentActivities(),
+        ];
+    }
+
+    /**
      * Get general statistics.
      *
      * @return array
@@ -79,6 +99,46 @@ class DashboardService
             'students_by_program' => $this->getStudentsByProgram(),
             'students_by_gender' => $this->getStudentsByGender(),
         ];
+    }
+
+    /**
+     * Get students by program.
+     *
+     * @return array
+     */
+    private function getStudentsByProgram(): array
+    {
+        return Program::query()->select('programs.name', DB::raw('COUNT(students.id) as count'))
+            ->leftJoin('students', 'programs.id', '=', 'students.program_id')
+            ->groupBy('programs.id', 'programs.name')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'name' => $item->name,
+                    'count' => $item->count,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get students by gender.
+     *
+     * @return array
+     */
+    private function getStudentsByGender(): array
+    {
+        return User::query()->select('gender', DB::raw('COUNT(students.id) as count'))
+            ->join('students', 'users.id', '=', 'students.user_id')
+            ->groupBy('gender')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'gender' => $item->gender,
+                    'count' => $item->count,
+                ];
+            })
+            ->toArray();
     }
 
     /**
@@ -195,6 +255,72 @@ class DashboardService
     }
 
     /**
+     * Get payments by method.
+     *
+     * @return array
+     */
+    private function getPaymentsByMethod(): array
+    {
+        return Payment::query()->select('payment_method', DB::raw('SUM(amount_paid) as total'))
+            ->where('status', PaymentStatusEnum::COMPLETED->value)
+            ->groupBy('payment_method')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'method' => $item->payment_method,
+                    'total' => $item->total,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get payments by month.
+     *
+     * @return array
+     */
+    private function getPaymentsByMonth(): array
+    {
+        $startDate = Carbon::now()->subMonths(11)->startOfMonth();
+        $endDate = Carbon::now()->endOfMonth();
+
+        $payments = Payment::query()->select(
+            DB::raw('YEAR(payment_date) as year'),
+            DB::raw('MONTH(payment_date) as month'),
+            DB::raw('SUM(amount_paid) as total')
+        )
+            ->where('status', PaymentStatusEnum::COMPLETED->value)
+            ->where('payment_date', '>=', $startDate)
+            ->where('payment_date', '<=', $endDate)
+            ->groupBy('year', 'month')
+            ->orderBy('year')
+            ->orderBy('month')
+            ->get();
+
+        $result = [];
+        $currentDate = $startDate->copy();
+
+        while ($currentDate <= $endDate) {
+            $year = $currentDate->year;
+            $month = $currentDate->month;
+            $monthName = $currentDate->format('M Y');
+
+            $payment = $payments->first(function ($item) use ($year, $month) {
+                return $item->year == $year && $item->month == $month;
+            });
+
+            $result[] = [
+                'month' => $monthName,
+                'total' => $payment ? $payment->total : 0,
+            ];
+
+            $currentDate->addMonth();
+        }
+
+        return $result;
+    }
+
+    /**
      * Get notification statistics.
      *
      * @return array
@@ -236,6 +362,67 @@ class DashboardService
             'score_distribution' => $this->getScoreDistribution(),
             'grade_distribution' => $this->getGradeDistribution(),
         ];
+    }
+
+    /**
+     * Get score distribution across different ranges.
+     *
+     * @return array
+     */
+    private function getScoreDistribution(): array
+    {
+        $ranges = [
+            '0-9' => [0, 9],
+            '10-19' => [10, 19],
+            '20-29' => [20, 29],
+            '30-39' => [30, 39],
+            '40-49' => [40, 49],
+            '50-59' => [50, 59],
+            '60-69' => [60, 69],
+            '70-79' => [70, 79],
+            '80-89' => [80, 89],
+            '90-100' => [90, 100],
+        ];
+
+        $distribution = [];
+
+        foreach ($ranges as $label => [$min, $max]) {
+            $count = Result::query()
+                ->where('score', '>=', $min)
+                ->where('score', '<=', $max)
+                ->count();
+
+            $distribution[] = [
+                'range' => $label,
+                'count' => $count,
+                'min_score' => $min,
+                'max_score' => $max,
+            ];
+        }
+
+        return $distribution;
+    }
+
+    /**
+     * Get grade distribution based on predefined grade ranges.
+     *
+     * @return array
+     */
+    private function getGradeDistribution(): array
+    {
+        return Result::query()
+            ->select('grades.grade', DB::raw('COUNT(results.id) as count'))
+            ->leftJoin('grades', 'results.grade_id', '=', 'grades.id')
+            ->groupBy('grades.id', 'grades.grade')
+            ->orderBy('grades.min_score', 'desc')
+            ->get()
+            ->map(function ($item) {
+                return [
+                    'grade' => $item->grade ?? 'Ungraded',
+                    'count' => $item->count,
+                ];
+            })
+            ->toArray();
     }
 
     /**
@@ -336,193 +523,6 @@ class DashboardService
             ->take($limit)
             ->values()
             ->all();
-    }
-
-    /**
-     * Get all dashboard metrics.
-     *
-     * @return array
-     */
-    public function getAllMetrics(): array
-    {
-        return [
-            'general' => $this->getGeneralStats(),
-            'students' => $this->getStudentStats(),
-            'staff' => $this->getStaffStats(),
-            'academic' => $this->getAcademicStats(),
-            'financial' => $this->getFinancialStats(),
-            'notifications' => $this->getNotificationStats(),
-            'performance' => $this->getPerformanceStats(),
-            'enrollment' => $this->getEnrollmentStats(),
-            'recent_activities' => $this->getRecentActivities(),
-        ];
-    }
-
-    /**
-     * Get students by program.
-     *
-     * @return array
-     */
-    private function getStudentsByProgram(): array
-    {
-        return Program::query()->select('programs.name', DB::raw('COUNT(students.id) as count'))
-            ->leftJoin('students', 'programs.id', '=', 'students.program_id')
-            ->groupBy('programs.id', 'programs.name')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'name' => $item->name,
-                    'count' => $item->count,
-                ];
-            })
-            ->toArray();
-    }
-
-    /**
-     * Get students by gender.
-     *
-     * @return array
-     */
-    private function getStudentsByGender(): array
-    {
-        return User::query()->select('gender', DB::raw('COUNT(students.id) as count'))
-            ->join('students', 'users.id', '=', 'students.user_id')
-            ->groupBy('gender')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'gender' => $item->gender,
-                    'count' => $item->count,
-                ];
-            })
-            ->toArray();
-    }
-
-    /**
-     * Get payments by method.
-     *
-     * @return array
-     */
-    private function getPaymentsByMethod(): array
-    {
-        return Payment::query()->select('payment_method', DB::raw('SUM(amount_paid) as total'))
-            ->where('status', PaymentStatusEnum::COMPLETED->value)
-            ->groupBy('payment_method')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'method' => $item->payment_method,
-                    'total' => $item->total,
-                ];
-            })
-            ->toArray();
-    }
-
-    /**
-     * Get payments by month.
-     *
-     * @return array
-     */
-    private function getPaymentsByMonth(): array
-    {
-        $startDate = Carbon::now()->subMonths(11)->startOfMonth();
-        $endDate = Carbon::now()->endOfMonth();
-
-        $payments = Payment::query()->select(
-            DB::raw('YEAR(payment_date) as year'),
-            DB::raw('MONTH(payment_date) as month'),
-            DB::raw('SUM(amount_paid) as total')
-        )
-            ->where('status', PaymentStatusEnum::COMPLETED->value)
-            ->where('payment_date', '>=', $startDate)
-            ->where('payment_date', '<=', $endDate)
-            ->groupBy('year', 'month')
-            ->orderBy('year')
-            ->orderBy('month')
-            ->get();
-
-        $result = [];
-        $currentDate = $startDate->copy();
-
-        while ($currentDate <= $endDate) {
-            $year = $currentDate->year;
-            $month = $currentDate->month;
-            $monthName = $currentDate->format('M Y');
-
-            $payment = $payments->first(function ($item) use ($year, $month) {
-                return $item->year == $year && $item->month == $month;
-            });
-
-            $result[] = [
-                'month' => $monthName,
-                'total' => $payment ? $payment->total : 0,
-            ];
-
-            $currentDate->addMonth();
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get score distribution across different ranges.
-     *
-     * @return array
-     */
-    private function getScoreDistribution(): array
-    {
-        $ranges = [
-            '0-9' => [0, 9],
-            '10-19' => [10, 19],
-            '20-29' => [20, 29],
-            '30-39' => [30, 39],
-            '40-49' => [40, 49],
-            '50-59' => [50, 59],
-            '60-69' => [60, 69],
-            '70-79' => [70, 79],
-            '80-89' => [80, 89],
-            '90-100' => [90, 100],
-        ];
-
-        $distribution = [];
-
-        foreach ($ranges as $label => [$min, $max]) {
-            $count = Result::query()
-                ->where('score', '>=', $min)
-                ->where('score', '<=', $max)
-                ->count();
-
-            $distribution[] = [
-                'range' => $label,
-                'count' => $count,
-                'min_score' => $min,
-                'max_score' => $max,
-            ];
-        }
-
-        return $distribution;
-    }
-
-    /**
-     * Get grade distribution based on predefined grade ranges.
-     *
-     * @return array
-     */
-    private function getGradeDistribution(): array
-    {
-        return Result::query()
-            ->select('grades.grade', DB::raw('COUNT(results.id) as count'))
-            ->leftJoin('grades', 'results.grade_id', '=', 'grades.id')
-            ->groupBy('grades.id', 'grades.grade')
-            ->orderBy('grades.min_score', 'desc')
-            ->get()
-            ->map(function ($item) {
-                return [
-                    'grade' => $item->grade ?? 'Ungraded',
-                    'count' => $item->count,
-                ];
-            })
-            ->toArray();
     }
 
     /**

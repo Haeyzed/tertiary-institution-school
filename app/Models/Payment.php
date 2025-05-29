@@ -32,19 +32,6 @@ class Payment extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'amount_paid' => 'decimal:2',
-            'payment_date' => 'date',
-        ];
-    }
-
-    /**
      * Get the student that owns the payment.
      *
      * @return BelongsTo
@@ -75,6 +62,16 @@ class Payment extends Model
     }
 
     /**
+     * Check if the payment is cash.
+     *
+     * @return bool
+     */
+    public function isCash(): bool
+    {
+        return $this->hasPaymentMethod(PaymentMethodEnum::CASH->value);
+    }
+
+    /**
      * Check if the payment has a specific payment method.
      *
      * @param string $method
@@ -83,16 +80,6 @@ class Payment extends Model
     public function hasPaymentMethod(string $method): bool
     {
         return $this->payment_method === $method;
-    }
-
-    /**
-     * Check if the payment is cash.
-     *
-     * @return bool
-     */
-    public function isCash(): bool
-    {
-        return $this->hasPaymentMethod(PaymentMethodEnum::CASH->value);
     }
 
     /**
@@ -146,6 +133,16 @@ class Payment extends Model
     }
 
     /**
+     * Check if the payment is pending.
+     *
+     * @return bool
+     */
+    public function isPending(): bool
+    {
+        return $this->hasStatus(PaymentStatusEnum::PENDING->value);
+    }
+
+    /**
      * Check if the payment has a specific status.
      *
      * @param string $status
@@ -154,16 +151,6 @@ class Payment extends Model
     public function hasStatus(string $status): bool
     {
         return $this->status === $status;
-    }
-
-    /**
-     * Check if the payment is pending.
-     *
-     * @return bool
-     */
-    public function isPending(): bool
-    {
-        return $this->hasStatus(PaymentStatusEnum::PENDING->value);
     }
 
     /**
@@ -204,5 +191,18 @@ class Payment extends Model
     public function isRefunded(): bool
     {
         return $this->hasStatus(PaymentStatusEnum::REFUNDED->value);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'amount_paid' => 'decimal:2',
+            'payment_date' => 'date',
+        ];
     }
 }

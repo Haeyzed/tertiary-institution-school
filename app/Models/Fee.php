@@ -27,18 +27,6 @@ class Fee extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'amount' => 'decimal:2',
-        ];
-    }
-
-    /**
      * Get the program that owns the fee.
      *
      * @return BelongsTo
@@ -66,5 +54,17 @@ class Fee extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'amount' => 'decimal:2',
+        ];
     }
 }

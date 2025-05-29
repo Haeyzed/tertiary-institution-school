@@ -30,24 +30,6 @@ enum DayOfWeekEnum: string
     }
 
     /**
-     * Get a human-readable label for the enum value.
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::MONDAY => 'Monday',
-            self::TUESDAY => 'Tuesday',
-            self::WEDNESDAY => 'Wednesday',
-            self::THURSDAY => 'Thursday',
-            self::FRIDAY => 'Friday',
-            self::SATURDAY => 'Saturday',
-            self::SUNDAY => 'Sunday',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -58,5 +40,23 @@ enum DayOfWeekEnum: string
             $carry[$enum->value] = $enum->label();
             return $carry;
         }, []);
+    }
+
+    /**
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::MONDAY => 'Monday',
+            self::TUESDAY => 'Tuesday',
+            self::WEDNESDAY => 'Wednesday',
+            self::THURSDAY => 'Thursday',
+            self::FRIDAY => 'Friday',
+            self::SATURDAY => 'Saturday',
+            self::SUNDAY => 'Sunday',
+        };
     }
 }

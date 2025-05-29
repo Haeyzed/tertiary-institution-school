@@ -30,19 +30,6 @@ class Assignment extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'due_date' => 'date',
-            'total_marks' => 'decimal:2',
-        ];
-    }
-
-    /**
      * Get the course that owns the assignment.
      *
      * @return BelongsTo
@@ -80,5 +67,18 @@ class Assignment extends Model
     public function studentAssignments(): HasMany
     {
         return $this->hasMany(StudentAssignment::class);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'due_date' => 'date',
+            'total_marks' => 'decimal:2',
+        ];
     }
 }

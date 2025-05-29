@@ -27,19 +27,6 @@ class StudentAssignment extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'submission_date' => 'date',
-            'score' => 'decimal:2',
-        ];
-    }
-
-    /**
      * Get the student that owns the student assignment.
      *
      * @return BelongsTo
@@ -57,5 +44,18 @@ class StudentAssignment extends Model
     public function assignment(): BelongsTo
     {
         return $this->belongsTo(Assignment::class);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'submission_date' => 'date',
+            'score' => 'decimal:2',
+        ];
     }
 }

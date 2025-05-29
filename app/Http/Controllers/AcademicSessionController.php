@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\AcademicSessionRequest;
 use App\Http\Resources\AcademicSessionResource;
 use App\Services\AcademicSessionService;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 /**

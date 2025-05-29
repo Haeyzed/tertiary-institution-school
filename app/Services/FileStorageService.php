@@ -4,13 +4,13 @@ namespace App\Services;
 
 use App\Enums\FileTypeEnum;
 use App\Models\Upload;
-use App\Models\User;
 use DateTimeInterface;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Intervention\Image\Image;
 use Log;
 
 //use Intervention\Image\Facades\Image;
@@ -43,6 +43,31 @@ class FileStorageService
     }
 
     /**
+     * Upload multiple files
+     *
+     * @param array $files
+     * @param array $options
+     * @return array
+     */
+    public function uploadMultiple(array $files, array $options = []): array
+    {
+        $uploads = [];
+
+        foreach ($files as $file) {
+            if ($file instanceof UploadedFile) {
+                try {
+                    $uploads[] = $this->upload($file, $options);
+                } catch (Exception $e) {
+                    // Log error and continue with other files
+                    Log::error('File upload failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        return $uploads;
+    }
+
+    /**
      * Upload a file
      *
      * @param UploadedFile $file
@@ -72,104 +97,6 @@ class FileStorageService
         }
 
         return $upload;
-    }
-
-    /**
-     * Upload multiple files
-     *
-     * @param array $files
-     * @param array $options
-     * @return array
-     */
-    public function uploadMultiple(array $files, array $options = []): array
-    {
-        $uploads = [];
-
-        foreach ($files as $file) {
-            if ($file instanceof UploadedFile) {
-                try {
-                    $uploads[] = $this->upload($file, $options);
-                } catch (Exception $e) {
-                    // Log error and continue with other files
-                    Log::error('File upload failed: ' . $e->getMessage());
-                }
-            }
-        }
-
-        return $uploads;
-    }
-
-    /**
-     * Delete a file
-     *
-     * @param Upload $upload
-     * @return bool
-     */
-    public function delete(Upload $upload): bool
-    {
-        try {
-            // Delete file from storage
-            $upload->deleteFile();
-
-            // Delete thumbnails if they exist
-            $this->deleteThumbnails($upload);
-
-            // Delete upload record
-            $upload->delete();
-
-            return true;
-        } catch (Exception $e) {
-            Log::error('File deletion failed: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Get file content
-     *
-     * @param Upload $upload
-     * @return string|null
-     */
-    public function getFileContent(Upload $upload): ?string
-    {
-        return $upload->getFileContent();
-    }
-
-    /**
-     * Get file stream
-     *
-     * @param Upload $upload
-     * @return resource|null
-     */
-    public function getFileStream(Upload $upload)
-    {
-        if ($upload->fileExists()) {
-            return Storage::disk($upload->disk)->readStream($upload->file_path);
-        }
-
-        return null;
-    }
-
-    /**
-     * Generate a temporary URL for private files
-     *
-     * @param Upload $upload
-     * @param DateTimeInterface $expiration
-     * @return string|null
-     */
-    public function getTemporaryUrl(Upload $upload, DateTimeInterface $expiration): ?string
-    {
-        try {
-            $storage = Storage::disk($upload->disk);
-
-            if (method_exists($storage, 'temporaryUrl')) {
-                return $storage->temporaryUrl($upload->file_path, $expiration);
-            }
-
-            return null;
-        } catch (Exception $e) {
-            return null;
-        }
     }
 
     /**
@@ -207,6 +134,33 @@ class FileStorageService
     }
 
     /**
+     * Check if MIME type is allowed
+     *
+     * @param string $mimeType
+     * @return bool
+     */
+    protected function isAllowedMimeType(string $mimeType): bool
+    {
+        $allowedMimeTypes = [
+            // Images
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff',
+            // Documents
+            'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain', 'text/csv', 'application/rtf',
+            // Videos
+            'video/mp4', 'video/avi', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg',
+            // Audio
+            'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/flac',
+            // Archives
+            'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed', 'application/x-tar', 'application/gzip',
+        ];
+
+        return in_array($mimeType, $allowedMimeTypes);
+    }
+
+    /**
      * Generate file information
      *
      * @param UploadedFile $file
@@ -234,6 +188,37 @@ class FileStorageService
             'file_type' => $fileType,
             'folder' => $folder,
         ];
+    }
+
+    /**
+     * Generate unique filename
+     *
+     * @param string $originalName
+     * @param string $extension
+     * @return string
+     */
+    protected function generateUniqueFileName(string $originalName, string $extension): string
+    {
+        $name = pathinfo($originalName, PATHINFO_FILENAME);
+        $name = Str::slug($name);
+        $uuid = Str::uuid();
+
+        return $name . '_' . $uuid . '.' . $extension;
+    }
+
+    /**
+     * Generate folder path
+     *
+     * @param string $baseFolder
+     * @param FileTypeEnum $fileType
+     * @return string
+     */
+    protected function generateFolderPath(string $baseFolder, FileTypeEnum $fileType): string
+    {
+        $year = date('Y');
+        $month = date('m');
+
+        return $baseFolder . '/' . $fileType->value . '/' . $year . '/' . $month;
     }
 
     /**
@@ -344,7 +329,7 @@ class FileStorageService
      * Generate thumbnails for images
      *
      * @param Upload $upload
-     * @param \Intervention\Image\Image $image
+     * @param Image $image
      */
     protected function generateThumbnails(Upload $upload, $image): void
     {
@@ -382,6 +367,48 @@ class FileStorageService
     }
 
     /**
+     * Get thumbnail path
+     *
+     * @param string $originalPath
+     * @param string $size
+     * @return string
+     */
+    protected function getThumbnailPath(string $originalPath, string $size): string
+    {
+        $pathInfo = pathinfo($originalPath);
+        $directory = $pathInfo['dirname'];
+        $filename = $pathInfo['filename'];
+        $extension = $pathInfo['extension'];
+
+        return $directory . '/thumbnails/' . $filename . '_' . $size . '.' . $extension;
+    }
+
+    /**
+     * Delete a file
+     *
+     * @param Upload $upload
+     * @return bool
+     */
+    public function delete(Upload $upload): bool
+    {
+        try {
+            // Delete file from storage
+            $upload->deleteFile();
+
+            // Delete thumbnails if they exist
+            $this->deleteThumbnails($upload);
+
+            // Delete upload record
+            $upload->delete();
+
+            return true;
+        } catch (Exception $e) {
+            Log::error('File deletion failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Delete thumbnails
      *
      * @param Upload $upload
@@ -400,78 +427,51 @@ class FileStorageService
     }
 
     /**
-     * Generate unique filename
+     * Get file content
      *
-     * @param string $originalName
-     * @param string $extension
-     * @return string
+     * @param Upload $upload
+     * @return string|null
      */
-    protected function generateUniqueFileName(string $originalName, string $extension): string
+    public function getFileContent(Upload $upload): ?string
     {
-        $name = pathinfo($originalName, PATHINFO_FILENAME);
-        $name = Str::slug($name);
-        $uuid = Str::uuid();
-
-        return $name . '_' . $uuid . '.' . $extension;
+        return $upload->getFileContent();
     }
 
     /**
-     * Generate folder path
+     * Get file stream
      *
-     * @param string $baseFolder
-     * @param FileTypeEnum $fileType
-     * @return string
+     * @param Upload $upload
+     * @return resource|null
      */
-    protected function generateFolderPath(string $baseFolder, FileTypeEnum $fileType): string
+    public function getFileStream(Upload $upload)
     {
-        $year = date('Y');
-        $month = date('m');
+        if ($upload->fileExists()) {
+            return Storage::disk($upload->disk)->readStream($upload->file_path);
+        }
 
-        return $baseFolder . '/' . $fileType->value . '/' . $year . '/' . $month;
+        return null;
     }
 
     /**
-     * Get thumbnail path
+     * Generate a temporary URL for private files
      *
-     * @param string $originalPath
-     * @param string $size
-     * @return string
+     * @param Upload $upload
+     * @param DateTimeInterface $expiration
+     * @return string|null
      */
-    protected function getThumbnailPath(string $originalPath, string $size): string
+    public function getTemporaryUrl(Upload $upload, DateTimeInterface $expiration): ?string
     {
-        $pathInfo = pathinfo($originalPath);
-        $directory = $pathInfo['dirname'];
-        $filename = $pathInfo['filename'];
-        $extension = $pathInfo['extension'];
+        try {
+            $storage = Storage::disk($upload->disk);
 
-        return $directory . '/thumbnails/' . $filename . '_' . $size . '.' . $extension;
-    }
+            if (method_exists($storage, 'temporaryUrl')) {
+                return $storage->temporaryUrl($upload->file_path, $expiration);
+            }
 
-    /**
-     * Check if MIME type is allowed
-     *
-     * @param string $mimeType
-     * @return bool
-     */
-    protected function isAllowedMimeType(string $mimeType): bool
-    {
-        $allowedMimeTypes = [
-            // Images
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff',
-            // Documents
-            'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'text/plain', 'text/csv', 'application/rtf',
-            // Videos
-            'video/mp4', 'video/avi', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg',
-            // Audio
-            'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/flac',
-            // Archives
-            'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed', 'application/x-tar', 'application/gzip',
-        ];
-
-        return in_array($mimeType, $allowedMimeTypes);
+            return null;
+        } catch (Exception $e) {
+            return null;
+        }
     }
 
     /**

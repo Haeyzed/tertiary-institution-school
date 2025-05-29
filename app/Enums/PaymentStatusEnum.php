@@ -28,22 +28,6 @@ enum PaymentStatusEnum: string
     }
 
     /**
-     * Get a human-readable label for the enum value.
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::PENDING => 'Pending',
-            self::COMPLETED => 'Completed',
-            self::PARTIAL => 'Partial',
-            self::FAILED => 'Failed',
-            self::REFUNDED => 'Refunded',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -54,5 +38,21 @@ enum PaymentStatusEnum: string
             $carry[$enum->value] = $enum->label();
             return $carry;
         }, []);
+    }
+
+    /**
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::PENDING => 'Pending',
+            self::COMPLETED => 'Completed',
+            self::PARTIAL => 'Partial',
+            self::FAILED => 'Failed',
+            self::REFUNDED => 'Refunded',
+        };
     }
 }

@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use App\Models\Program;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ProgramService
 {
@@ -116,8 +116,8 @@ class ProgramService
     public function searchPrograms(string $term, ?int $perPage = null): Collection|LengthAwarePaginator
     {
         $query = Program::query()
-            ->whereLike('name',"%$term%")
-            ->orWhereLike('code',"%$term%");
+            ->whereLike('name', "%$term%")
+            ->orWhereLike('code', "%$term%");
 
         return $perPage ? $query->paginate($perPage) : $query->get();
     }

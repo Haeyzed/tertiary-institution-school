@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\Course;
 use App\Models\CourseSemester;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class CourseService
 {

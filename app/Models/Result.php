@@ -28,18 +28,6 @@ class Result extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'score' => 'decimal:2',
-        ];
-    }
-
-    /**
      * Get the student that owns the result.
      *
      * @return BelongsTo
@@ -87,5 +75,17 @@ class Result extends Model
     public function grade(): BelongsTo
     {
         return $this->belongsTo(Grade::class);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'score' => 'decimal:2',
+        ];
     }
 }

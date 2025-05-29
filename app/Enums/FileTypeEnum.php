@@ -22,23 +22,6 @@ enum FileTypeEnum: string
     }
 
     /**
-     * Get human-readable name for the file type
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::IMAGE => 'Image',
-            self::DOCUMENT => 'Document',
-            self::VIDEO => 'Video',
-            self::AUDIO => 'Audio',
-            self::ARCHIVE => 'Archive',
-            self::OTHER => 'Other',
-        };
-    }
-
-    /**
      * Get file type from MIME type
      *
      * @param string $mimeType
@@ -74,13 +57,30 @@ enum FileTypeEnum: string
     }
 
     /**
+     * Get human-readable name for the file type
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::IMAGE => 'Image',
+            self::DOCUMENT => 'Document',
+            self::VIDEO => 'Video',
+            self::AUDIO => 'Audio',
+            self::ARCHIVE => 'Archive',
+            self::OTHER => 'Other',
+        };
+    }
+
+    /**
      * Get allowed MIME types for this file type
      *
      * @return array<string>
      */
     public function getAllowedMimeTypes(): array
     {
-        return match($this) {
+        return match ($this) {
             self::IMAGE => [
                 'image/jpeg',
                 'image/png',

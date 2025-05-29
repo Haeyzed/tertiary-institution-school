@@ -26,6 +26,16 @@ class Grade extends Model
     ];
 
     /**
+     * Get the results for the grade.
+     *
+     * @return HasMany
+     */
+    public function results(): HasMany
+    {
+        return $this->hasMany(Result::class);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -36,15 +46,5 @@ class Grade extends Model
             'min_score' => 'decimal:2',
             'max_score' => 'decimal:2',
         ];
-    }
-
-    /**
-     * Get the results for the grade.
-     *
-     * @return HasMany
-     */
-    public function results(): HasMany
-    {
-        return $this->hasMany(Result::class);
     }
 }

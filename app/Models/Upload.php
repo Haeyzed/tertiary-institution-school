@@ -35,22 +35,6 @@ class Upload extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'file_size' => 'integer',
-            'is_public' => 'boolean',
-            'metadata' => 'array',
-            'uploaded_at' => 'datetime',
-            'file_type' => FileTypeEnum::class,
-        ];
-    }
-
-    /**
      * Get the user that uploaded the file.
      */
     public function user(): BelongsTo
@@ -115,16 +99,6 @@ class Upload extends Model
     }
 
     /**
-     * Check if the file exists on disk.
-     *
-     * @return bool
-     */
-    public function fileExists(): bool
-    {
-        return Storage::disk($this->disk)->exists($this->file_path);
-    }
-
-    /**
      * Delete the file from storage.
      *
      * @return bool
@@ -136,6 +110,16 @@ class Upload extends Model
         }
 
         return true;
+    }
+
+    /**
+     * Check if the file exists on disk.
+     *
+     * @return bool
+     */
+    public function fileExists(): bool
+    {
+        return Storage::disk($this->disk)->exists($this->file_path);
     }
 
     /**
@@ -248,5 +232,21 @@ class Upload extends Model
     public function scopePrivate(Builder $query): Builder
     {
         return $query->where('is_public', false);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'file_size' => 'integer',
+            'is_public' => 'boolean',
+            'metadata' => 'array',
+            'uploaded_at' => 'datetime',
+            'file_type' => FileTypeEnum::class,
+        ];
     }
 }

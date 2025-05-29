@@ -7,8 +7,8 @@ use App\Enums\UserTypeEnum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 use ValueError;
 
 class ACLService
@@ -206,24 +206,6 @@ class ACLService
     }
 
     /**
-     * Check if the authenticated user has the required permission.
-     *
-     * @param string $permission
-     * @return bool
-     */
-    protected function checkPermission(string $permission): bool
-    {
-        $user = Auth::user();
-
-        // Super admins have all permissions
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        return $user->hasPermissionTo($permission);
-    }
-
-    /**
      * Create default roles and permissions for the system
      *
      * @return void
@@ -298,5 +280,23 @@ class ACLService
                 'guard_name' => 'api',
             ]);
         }
+    }
+
+    /**
+     * Check if the authenticated user has the required permission.
+     *
+     * @param string $permission
+     * @return bool
+     */
+    protected function checkPermission(string $permission): bool
+    {
+        $user = Auth::user();
+
+        // Super admins have all permissions
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $user->hasPermissionTo($permission);
     }
 }

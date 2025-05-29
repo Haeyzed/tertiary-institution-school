@@ -4,6 +4,8 @@ namespace App\Http\Requests;
 
 use App\Enums\GenderEnum;
 use App\Enums\UserTypeEnum;
+use App\Models\User;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 /**
@@ -16,7 +18,7 @@ class UserRequest extends BaseRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -45,12 +47,12 @@ class UserRequest extends BaseRequest
                 'email',
                 'max:255',
                 function ($attribute, $value, $fail) use ($userId) {
-                    $query = \App\Models\User::where('email', $value);
+                    $query = User::query()->where('email', $value);
 
                     if ($this->has('user_type')) {
                         $query->where('user_type', $this->input('user_type'));
                     } else {
-                        $user = \App\Models\User::find($userId);
+                        $user = User::query()->find($userId);
                         if ($user) {
                             $query->where('user_type', $user->user_type);
                         }

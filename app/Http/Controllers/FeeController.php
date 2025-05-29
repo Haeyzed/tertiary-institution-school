@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FeeRequest;
 use App\Http\Resources\FeeResource;
 use App\Services\FeeService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class FeeController extends Controller
 {

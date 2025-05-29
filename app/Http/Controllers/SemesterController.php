@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\SemesterRequest;
 use App\Http\Resources\SemesterResource;
 use App\Services\SemesterService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class SemesterController extends Controller
 {

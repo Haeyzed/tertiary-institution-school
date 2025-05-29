@@ -30,24 +30,6 @@ enum PaymentMethodEnum: string
     }
 
     /**
-     * Get a human-readable label for the enum value.
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::CASH => 'Cash',
-            self::BANK_TRANSFER => 'Bank Transfer',
-            self::CREDIT_CARD => 'Credit Card',
-            self::DEBIT_CARD => 'Debit Card',
-            self::MOBILE_MONEY => 'Mobile Money',
-            self::CHEQUE => 'Cheque',
-            self::PAYSTACK => 'Paystack',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -58,5 +40,23 @@ enum PaymentMethodEnum: string
             $carry[$enum->value] = $enum->label();
             return $carry;
         }, []);
+    }
+
+    /**
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::CASH => 'Cash',
+            self::BANK_TRANSFER => 'Bank Transfer',
+            self::CREDIT_CARD => 'Credit Card',
+            self::DEBIT_CARD => 'Debit Card',
+            self::MOBILE_MONEY => 'Mobile Money',
+            self::CHEQUE => 'Cheque',
+            self::PAYSTACK => 'Paystack',
+        };
     }
 }

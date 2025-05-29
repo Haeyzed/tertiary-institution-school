@@ -26,20 +26,6 @@ enum GenderEnum: string
     }
 
     /**
-     * Get a human-readable label for the enum value.
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::MALE => 'Male',
-            self::FEMALE => 'Female',
-            self::OTHER => 'Other',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -50,5 +36,19 @@ enum GenderEnum: string
             $carry[$enum->value] = $enum->label();
             return $carry;
         }, []);
+    }
+
+    /**
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::MALE => 'Male',
+            self::FEMALE => 'Female',
+            self::OTHER => 'Other',
+        };
     }
 }

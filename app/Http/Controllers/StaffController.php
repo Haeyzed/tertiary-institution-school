@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StaffRequest;
 use App\Http\Resources\StaffResource;
 use App\Services\StaffService;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class StaffController extends Controller

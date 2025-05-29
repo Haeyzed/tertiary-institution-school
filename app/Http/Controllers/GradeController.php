@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GradeRequest;
 use App\Http\Resources\GradeResource;
 use App\Services\GradeService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class GradeController extends Controller
 {

@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ResultRequest;
 use App\Http\Resources\ResultResource;
 use App\Services\ResultService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ResultController extends Controller
 {

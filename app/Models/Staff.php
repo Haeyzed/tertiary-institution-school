@@ -35,18 +35,6 @@ class Staff extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'joining_date' => 'date',
-        ];
-    }
-
-    /**
      * Get the user that owns the staff.
      *
      * @return BelongsTo
@@ -94,5 +82,17 @@ class Staff extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(Assignment::class);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'joining_date' => 'date',
+        ];
     }
 }

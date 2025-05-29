@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\FacultyRequest;
 use App\Http\Resources\FacultyResource;
 use App\Services\FacultyService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class FacultyController extends Controller
 {

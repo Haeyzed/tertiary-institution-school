@@ -3,21 +3,18 @@
 namespace App\Services;
 
 use App\Models\User;
-use App\Services\UploadService;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
+use Exception;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Events\Registered;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 use Log;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Auth\Events\Verified;
-use Illuminate\Support\Facades\URL;
-use Carbon\Carbon;
 
 /**
  * Class AuthService
@@ -130,7 +127,7 @@ class AuthService
             try {
                 $upload = $this->uploadService->uploadProfilePhoto($photoFile, $user);
                 $photoPath = $upload->file_path;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Profile photo upload failed during registration: ' . $e->getMessage());
                 // Continue with registration even if photo upload fails
             }
@@ -156,6 +153,35 @@ class AuthService
             'token_type' => 'bearer',
             'expires_in' => JWTAuth::factory()->getTTL() * 60,
         ];
+    }
+
+    /**
+     * Upload profile photo for authenticated user
+     *
+     * @param UploadedFile $photo
+     * @return array
+     * @throws JWTException
+     */
+    public function uploadProfilePhoto(UploadedFile $photo): array
+    {
+        $user = JWTAuth::parseToken()->authenticate();
+
+        try {
+            $upload = $this->uploadService->uploadProfilePhoto($photo, $user);
+
+            return [
+                'user' => $user->fresh(),
+                'upload' => $upload,
+                'photo_url' => $upload->public_url,
+                'thumbnails' => [
+                    'thumb' => $this->uploadService->getThumbnailUrl($upload, 'thumb'),
+                    'small' => $this->uploadService->getThumbnailUrl($upload, 'small'),
+                    'medium' => $this->uploadService->getThumbnailUrl($upload, 'medium'),
+                ],
+            ];
+        } catch (Exception $e) {
+            throw new Exception('Profile photo upload failed: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -227,7 +253,7 @@ class AuthService
             try {
                 $upload = $this->uploadService->uploadProfilePhoto($data['photo'], $user);
                 $data['photo'] = $upload->file_path;
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 Log::error('Profile photo upload failed during update: ' . $e->getMessage());
                 unset($data['photo']); // Remove from update data if upload fails
             }
@@ -262,35 +288,6 @@ class AuthService
     }
 
     /**
-     * Upload profile photo for authenticated user
-     *
-     * @param UploadedFile $photo
-     * @return array
-     * @throws JWTException
-     */
-    public function uploadProfilePhoto(UploadedFile $photo): array
-    {
-        $user = JWTAuth::parseToken()->authenticate();
-
-        try {
-            $upload = $this->uploadService->uploadProfilePhoto($photo, $user);
-
-            return [
-                'user' => $user->fresh(),
-                'upload' => $upload,
-                'photo_url' => $upload->public_url,
-                'thumbnails' => [
-                    'thumb' => $this->uploadService->getThumbnailUrl($upload, 'thumb'),
-                    'small' => $this->uploadService->getThumbnailUrl($upload, 'small'),
-                    'medium' => $this->uploadService->getThumbnailUrl($upload, 'medium'),
-                ],
-            ];
-        } catch (\Exception $e) {
-            throw new \Exception('Profile photo upload failed: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * Remove profile photo for authenticated user
      *
      * @return User
@@ -301,7 +298,7 @@ class AuthService
         $user = JWTAuth::parseToken()->authenticate();
 
         if (!$user->photo) {
-            throw new \Exception('No profile photo to remove');
+            throw new Exception('No profile photo to remove');
         }
 
         $this->uploadService->deleteUserProfilePhoto($user);
@@ -398,7 +395,7 @@ class AuthService
 
         $user = $query->findOrFail($userId);
 
-        if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
+        if (!hash_equals((string)$hash, sha1($user->getEmailForVerification()))) {
             return false;
         }
 

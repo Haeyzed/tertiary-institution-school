@@ -27,18 +27,6 @@ class Notification extends Model
     ];
 
     /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'is_read' => 'boolean',
-        ];
-    }
-
-    /**
      * Get the user that owns the notification.
      *
      * @return BelongsTo
@@ -46,6 +34,16 @@ class Notification extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Check if the notification is general.
+     *
+     * @return bool
+     */
+    public function isGeneral(): bool
+    {
+        return $this->hasType(NotificationTypeEnum::GENERAL);
     }
 
     /**
@@ -57,16 +55,6 @@ class Notification extends Model
     public function hasType(string $type): bool
     {
         return $this->type === $type;
-    }
-
-    /**
-     * Check if the notification is general.
-     *
-     * @return bool
-     */
-    public function isGeneral(): bool
-    {
-        return $this->hasType(NotificationTypeEnum::GENERAL);
     }
 
     /**
@@ -97,5 +85,17 @@ class Notification extends Model
     public function isAlert(): bool
     {
         return $this->hasType(NotificationTypeEnum::ALERT);
+    }
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_read' => 'boolean',
+        ];
     }
 }

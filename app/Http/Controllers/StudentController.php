@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StudentRequest;
 use App\Http\Resources\StudentResource;
 use App\Services\StudentService;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class StudentController extends Controller

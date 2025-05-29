@@ -6,6 +6,7 @@ use App\Enums\GenderEnum;
 use App\Enums\UserTypeEnum;
 use App\Http\Requests\BaseRequest;
 use App\Models\User;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Validation\Rule;
 
@@ -17,7 +18,7 @@ class RegisterRequest extends BaseRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

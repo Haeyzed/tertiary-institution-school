@@ -27,21 +27,6 @@ enum ExamStatusEnum: string
     }
 
     /**
-     * Get a human-readable label for the enum value.
-     *
-     * @return string
-     */
-    public function label(): string
-    {
-        return match($this) {
-            self::PENDING => 'Pending',
-            self::ONGOING => 'Ongoing',
-            self::COMPLETED => 'Completed',
-            self::CANCELLED => 'Cancelled',
-        };
-    }
-
-    /**
      * Get all enum values with their labels.
      *
      * @return array
@@ -52,5 +37,20 @@ enum ExamStatusEnum: string
             $carry[$enum->value] = $enum->label();
             return $carry;
         }, []);
+    }
+
+    /**
+     * Get a human-readable label for the enum value.
+     *
+     * @return string
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::PENDING => 'Pending',
+            self::ONGOING => 'Ongoing',
+            self::COMPLETED => 'Completed',
+            self::CANCELLED => 'Cancelled',
+        };
     }
 }

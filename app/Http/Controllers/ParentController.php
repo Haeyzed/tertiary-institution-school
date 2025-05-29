@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ParentRequest;
 use App\Http\Resources\ParentResource;
 use App\Services\ParentService;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use Exception;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Throwable;
 
 class ParentController extends Controller
