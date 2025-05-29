@@ -5,15 +5,13 @@ namespace App\Services;
 use App\Enums\FileTypeEnum;
 use App\Models\Upload;
 use App\Models\User;
-use DateTimeInterface;
-use Exception;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Image;
-use Log;
+use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 
 class UploadService
 {
@@ -21,7 +19,7 @@ class UploadService
      * Default configuration
      */
     protected array $config = [
-        'disk' => 'public',
+        'disk' => 's3',
         'folder' => 'uploads',
         'is_public' => true,
         'generate_thumbnails' => true,
@@ -33,6 +31,11 @@ class UploadService
     ];
 
     /**
+     * Image manager instance
+     */
+    protected ImageManager $imageManager;
+
+    /**
      * UploadService constructor.
      *
      * @param array $config
@@ -40,31 +43,7 @@ class UploadService
     public function __construct(array $config = [])
     {
         $this->config = array_merge($this->config, $config);
-    }
-
-    /**
-     * Upload multiple files for a specific user
-     *
-     * @param array $files
-     * @param User $user
-     * @param array $options
-     * @return array
-     */
-    public function uploadMultipleFiles(array $files, User $user, array $options = []): array
-    {
-        $uploads = [];
-
-        foreach ($files as $file) {
-            if ($file instanceof UploadedFile) {
-                try {
-                    $uploads[] = $this->uploadFile($file, $user, $options);
-                } catch (Exception $e) {
-                    Log::error('File upload failed: ' . $e->getMessage());
-                }
-            }
-        }
-
-        return $uploads;
+        $this->imageManager = new ImageManager(new Driver());
     }
 
     /**
@@ -74,7 +53,7 @@ class UploadService
      * @param User $user
      * @param array $options
      * @return Upload
-     * @throws Exception
+     * @throws \Exception
      */
     public function uploadFile(UploadedFile $file, User $user, array $options = []): Upload
     {
@@ -101,64 +80,322 @@ class UploadService
     }
 
     /**
+     * Upload multiple files for a specific user
+     *
+     * @param array $files
+     * @param User $user
+     * @param array $options
+     * @return array
+     */
+    public function uploadMultipleFiles(array $files, User $user, array $options = []): array
+    {
+        $uploads = [];
+
+        foreach ($files as $file) {
+            if ($file instanceof UploadedFile) {
+                try {
+                    $uploads[] = $this->uploadFile($file, $user, $options);
+                } catch (\Exception $e) {
+                    \Log::error('File upload failed: ' . $e->getMessage());
+                }
+            }
+        }
+
+        return $uploads;
+    }
+
+    /**
+     * Upload profile photo for user
+     *
+     * @param UploadedFile $file
+     * @param User $user
+     * @return Upload
+     * @throws \Exception
+     */
+    public function uploadProfilePhoto(UploadedFile $file, User $user): Upload
+    {
+        $options = [
+            'disk' => 'public',
+            'folder' => 'uploads/profiles',
+            'is_public' => true,
+            'generate_thumbnails' => true,
+            'max_file_size' => 5242880, // 5MB
+            'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
+            'image_quality' => 90,
+            'image_max_width' => 1024,
+            'image_max_height' => 1024,
+        ];
+
+        // Delete old profile photo if exists
+        if ($user->photo) {
+            $this->deleteUserProfilePhoto($user);
+        }
+
+        $upload = $this->uploadFile($file, $user, $options);
+
+        // Update user's photo path
+        $user->update(['photo' => $upload->file_path]);
+
+        return $upload;
+    }
+
+    /**
+     * Delete user's profile photo
+     *
+     * @param User $user
+     * @return bool
+     */
+    public function deleteUserProfilePhoto(User $user): bool
+    {
+        if (!$user->photo) {
+            return false;
+        }
+
+        $upload = Upload::where('user_id', $user->id)
+            ->where('file_path', $user->photo)
+            ->first();
+
+        if ($upload) {
+            $this->deleteUpload($upload);
+        }
+
+        $user->update(['photo' => null]);
+        return true;
+    }
+
+    /**
+     * Get user uploads with pagination
+     *
+     * @param User $user
+     * @param int|null $perPage
+     * @param string|null $fileType
+     * @param string|null $disk
+     * @return Collection|LengthAwarePaginator
+     */
+    public function getUserUploads(User $user, ?int $perPage = null, ?string $fileType = null, ?string $disk = null): Collection|LengthAwarePaginator
+    {
+        $query = Upload::byUser($user->id)
+            ->with('user')
+            ->latest('uploaded_at');
+
+        if ($fileType) {
+            $query->byFileType(FileTypeEnum::from($fileType));
+        }
+
+        if ($disk) {
+            $query->byDisk($disk);
+        }
+
+        return $perPage ? $query->paginate($perPage) : $query->get();
+    }
+
+    /**
+     * Get upload by ID for user
+     *
+     * @param int $uploadId
+     * @param User $user
+     * @return Upload|null
+     */
+    public function getUserUpload(int $uploadId, User $user): ?Upload
+    {
+        return Upload::where('id', $uploadId)
+            ->where('user_id', $user->id)
+            ->first();
+    }
+
+    /**
+     * Update upload metadata
+     *
+     * @param Upload $upload
+     * @param array $data
+     * @return Upload
+     */
+    public function updateUpload(Upload $upload, array $data): Upload
+    {
+        $upload->update($data);
+        return $upload;
+    }
+
+    /**
+     * Delete an upload
+     *
+     * @param Upload $upload
+     * @return bool
+     */
+    public function deleteUpload(Upload $upload): bool
+    {
+        try {
+            // Delete file from storage
+            $upload->deleteFile();
+
+            // Delete thumbnails if they exist
+            $this->deleteThumbnails($upload);
+
+            // Delete upload record
+            $upload->delete();
+
+            return true;
+        } catch (\Exception $e) {
+            \Log::error('File deletion failed: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get file content
+     *
+     * @param Upload $upload
+     * @return string|null
+     */
+    public function getFileContent(Upload $upload): ?string
+    {
+        return $upload->getFileContent();
+    }
+
+    /**
+     * Get file stream
+     *
+     * @param Upload $upload
+     * @return resource|null
+     */
+    public function getFileStream(Upload $upload)
+    {
+        if ($upload->fileExists()) {
+            return Storage::disk($upload->disk)->readStream($upload->file_path);
+        }
+
+        return null;
+    }
+
+    /**
+     * Generate a temporary URL for private files
+     *
+     * @param Upload $upload
+     * @param \DateTimeInterface $expiration
+     * @return string|null
+     */
+    public function getTemporaryUrl(Upload $upload, \DateTimeInterface $expiration): ?string
+    {
+        try {
+            $storage = Storage::disk($upload->disk);
+
+            if (method_exists($storage, 'temporaryUrl')) {
+                return $storage->temporaryUrl($upload->file_path, $expiration);
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get thumbnail URL
+     *
+     * @param Upload $upload
+     * @param string $size
+     * @return string|null
+     */
+    public function getThumbnailUrl(Upload $upload, string $size = 'thumb'): ?string
+    {
+        if (!$upload->isImage() || !isset($upload->metadata['thumbnails'][$size])) {
+            return null;
+        }
+
+        $thumbnailPath = $upload->metadata['thumbnails'][$size];
+
+        try {
+            return Storage::disk($upload->disk)->url($thumbnailPath);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Get upload statistics for user
+     *
+     * @param User $user
+     * @return array
+     */
+    public function getUserUploadStatistics(User $user): array
+    {
+        $stats = [
+            'total_uploads' => Upload::byUser($user->id)->count(),
+            'total_size' => Upload::byUser($user->id)->sum('file_size'),
+            'by_type' => Upload::byUser($user->id)
+                ->selectRaw('file_type, COUNT(*) as count, SUM(file_size) as total_size')
+                ->groupBy('file_type')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->file_type->value => [
+                        'count' => $item->count,
+                        'total_size' => $item->total_size,
+                        'human_size' => $this->formatBytes($item->total_size),
+                    ]];
+                }),
+            'by_disk' => Upload::byUser($user->id)
+                ->selectRaw('disk, COUNT(*) as count, SUM(file_size) as total_size')
+                ->groupBy('disk')
+                ->get()
+                ->mapWithKeys(function ($item) {
+                    return [$item->disk => [
+                        'count' => $item->count,
+                        'total_size' => $item->total_size,
+                        'human_size' => $this->formatBytes($item->total_size),
+                    ]];
+                }),
+            'recent_uploads' => Upload::byUser($user->id)
+                ->latest('uploaded_at')
+                ->limit(5)
+                ->get()
+                ->map(function ($upload) {
+                    return [
+                        'id' => $upload->id,
+                        'original_name' => $upload->original_name,
+                        'file_type' => $upload->file_type->value,
+                        'file_size' => $upload->human_file_size,
+                        'uploaded_at' => $upload->uploaded_at->toISOString(),
+                    ];
+                }),
+        ];
+
+        $stats['human_total_size'] = $this->formatBytes($stats['total_size']);
+
+        return $stats;
+    }
+
+    /**
      * Validate uploaded file
      *
      * @param UploadedFile $file
      * @param array $config
-     * @throws Exception
+     * @throws \Exception
      */
     protected function validateFile(UploadedFile $file, array $config): void
     {
         // Check if file is valid
         if (!$file->isValid()) {
-            throw new Exception('Invalid file upload');
+            throw new \Exception('Invalid file upload');
         }
 
         // Check file size
         if ($file->getSize() > $config['max_file_size']) {
-            throw new Exception('File size exceeds maximum allowed size');
+            throw new \Exception('File size exceeds maximum allowed size');
         }
 
         // Check file extension
         if (!empty($config['allowed_extensions'])) {
             $extension = strtolower($file->getClientOriginalExtension());
             if (!in_array($extension, $config['allowed_extensions'])) {
-                throw new Exception('File type not allowed');
+                throw new \Exception('File type not allowed');
             }
         }
 
         // Check MIME type
         $mimeType = $file->getMimeType();
         if (!$this->isAllowedMimeType($mimeType)) {
-            throw new Exception('File MIME type not allowed');
+            throw new \Exception('File MIME type not allowed');
         }
-    }
-
-    /**
-     * Check if MIME type is allowed
-     *
-     * @param string $mimeType
-     * @return bool
-     */
-    protected function isAllowedMimeType(string $mimeType): bool
-    {
-        $allowedMimeTypes = [
-            // Images
-            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff',
-            // Documents
-            'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'text/plain', 'text/csv', 'application/rtf',
-            // Videos
-            'video/mp4', 'video/avi', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg',
-            // Audio
-            'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/flac',
-            // Archives
-            'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed', 'application/x-tar', 'application/gzip',
-        ];
-
-        return in_array($mimeType, $allowedMimeTypes);
     }
 
     /**
@@ -189,37 +426,6 @@ class UploadService
             'file_type' => $fileType,
             'folder' => $folder,
         ];
-    }
-
-    /**
-     * Generate unique filename
-     *
-     * @param string $originalName
-     * @param string $extension
-     * @return string
-     */
-    protected function generateUniqueFileName(string $originalName, string $extension): string
-    {
-        $name = pathinfo($originalName, PATHINFO_FILENAME);
-        $name = Str::slug($name);
-        $uuid = Str::uuid();
-
-        return $name . '_' . $uuid . '.' . $extension;
-    }
-
-    /**
-     * Generate folder path
-     *
-     * @param string $baseFolder
-     * @param FileTypeEnum $fileType
-     * @return string
-     */
-    protected function generateFolderPath(string $baseFolder, FileTypeEnum $fileType): string
-    {
-        $year = date('Y');
-        $month = date('m');
-
-        return $baseFolder . '/' . $fileType->value . '/' . $year . '/' . $month;
     }
 
     /**
@@ -305,25 +511,30 @@ class UploadService
         try {
             $filePath = Storage::disk($upload->disk)->path($upload->file_path);
 
-            // Load image
-            $image = Image::make($filePath);
+            // Read image using new Intervention Image 3.x API
+            $image = $this->imageManager->read($filePath);
+
+            // Get original dimensions
+            $originalWidth = $image->width();
+            $originalHeight = $image->height();
 
             // Resize if needed
-            if ($image->width() > $config['image_max_width'] || $image->height() > $config['image_max_height']) {
-                $image->resize($config['image_max_width'], $config['image_max_height'], function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
+            if ($originalWidth > $config['image_max_width'] || $originalHeight > $config['image_max_height']) {
+                $image->scaleDown(
+                    width: $config['image_max_width'],
+                    height: $config['image_max_height']
+                );
             }
 
             // Save optimized image
-            $image->save($filePath, $config['image_quality']);
+            $encoded = $image->toJpeg($config['image_quality']);
+            file_put_contents($filePath, $encoded);
 
             // Generate thumbnails
             $this->generateThumbnails($upload, $image);
 
-        } catch (Exception $e) {
-            Log::error('Image processing failed: ' . $e->getMessage());
+        } catch (\Exception $e) {
+            \Log::error('Image processing failed: ' . $e->getMessage());
         }
     }
 
@@ -331,7 +542,7 @@ class UploadService
      * Generate thumbnails for images
      *
      * @param Upload $upload
-     * @param \Intervention\Image\Image $image
+     * @param \Intervention\Image\Interfaces\ImageInterface $image
      */
     protected function generateThumbnails(Upload $upload, $image): void
     {
@@ -343,8 +554,11 @@ class UploadService
 
         foreach ($thumbnailSizes as $size => [$width, $height]) {
             try {
+                // Clone the image for thumbnail generation
                 $thumbnailImage = clone $image;
-                $thumbnailImage->fit($width, $height);
+
+                // Resize to fit within dimensions while maintaining aspect ratio
+                $thumbnailImage->cover($width, $height);
 
                 $thumbnailPath = $this->getThumbnailPath($upload->file_path, $size);
                 $fullThumbnailPath = Storage::disk($upload->disk)->path($thumbnailPath);
@@ -355,17 +569,68 @@ class UploadService
                     mkdir($directory, 0755, true);
                 }
 
-                $thumbnailImage->save($fullThumbnailPath, 80);
+                // Save thumbnail
+                $encoded = $thumbnailImage->toJpeg(80);
+                file_put_contents($fullThumbnailPath, $encoded);
 
                 // Update metadata with thumbnail info
                 $metadata = $upload->metadata ?? [];
                 $metadata['thumbnails'][$size] = $thumbnailPath;
                 $upload->update(['metadata' => $metadata]);
 
-            } catch (Exception $e) {
-                Log::error("Thumbnail generation failed for size {$size}: " . $e->getMessage());
+            } catch (\Exception $e) {
+                \Log::error("Thumbnail generation failed for size {$size}: " . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Delete thumbnails
+     *
+     * @param Upload $upload
+     */
+    protected function deleteThumbnails(Upload $upload): void
+    {
+        if (isset($upload->metadata['thumbnails'])) {
+            foreach ($upload->metadata['thumbnails'] as $thumbnailPath) {
+                try {
+                    Storage::disk($upload->disk)->delete($thumbnailPath);
+                } catch (\Exception $e) {
+                    \Log::error('Thumbnail deletion failed: ' . $e->getMessage());
+                }
+            }
+        }
+    }
+
+    /**
+     * Generate unique filename
+     *
+     * @param string $originalName
+     * @param string $extension
+     * @return string
+     */
+    protected function generateUniqueFileName(string $originalName, string $extension): string
+    {
+        $name = pathinfo($originalName, PATHINFO_FILENAME);
+        $name = Str::slug($name);
+        $uuid = Str::uuid();
+
+        return $name . '_' . $uuid . '.' . $extension;
+    }
+
+    /**
+     * Generate folder path
+     *
+     * @param string $baseFolder
+     * @param FileTypeEnum $fileType
+     * @return string
+     */
+    protected function generateFolderPath(string $baseFolder, FileTypeEnum $fileType): string
+    {
+        $year = date('Y');
+        $month = date('m');
+
+        return $baseFolder . '/' . $fileType->value . '/' . $year . '/' . $month;
     }
 
     /**
@@ -386,281 +651,30 @@ class UploadService
     }
 
     /**
-     * Upload profile photo for user
+     * Check if MIME type is allowed
      *
-     * @param UploadedFile $file
-     * @param User $user
-     * @return Upload
-     * @throws Exception
-     */
-    public function uploadProfilePhoto(UploadedFile $file, User $user): Upload
-    {
-        $options = [
-            'disk' => 'public',
-            'folder' => 'uploads/profiles',
-            'is_public' => true,
-            'generate_thumbnails' => true,
-            'max_file_size' => 5242880, // 5MB
-            'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
-            'image_quality' => 90,
-            'image_max_width' => 1024,
-            'image_max_height' => 1024,
-        ];
-
-        // Delete old profile photo if exists
-        if ($user->photo) {
-            $this->deleteUserProfilePhoto($user);
-        }
-
-        $upload = $this->uploadFile($file, $user, $options);
-
-        // Update user's photo path
-        $user->update(['photo' => $upload->file_path]);
-
-        return $upload;
-    }
-
-    /**
-     * Delete user's profile photo
-     *
-     * @param User $user
+     * @param string $mimeType
      * @return bool
      */
-    public function deleteUserProfilePhoto(User $user): bool
+    protected function isAllowedMimeType(string $mimeType): bool
     {
-        if (!$user->photo) {
-            return false;
-        }
-
-        $upload = Upload::where('user_id', $user->id)
-            ->where('file_path', $user->photo)
-            ->first();
-
-        if ($upload) {
-            $this->deleteUpload($upload);
-        }
-
-        $user->update(['photo' => null]);
-        return true;
-    }
-
-    /**
-     * Delete an upload
-     *
-     * @param Upload $upload
-     * @return bool
-     */
-    public function deleteUpload(Upload $upload): bool
-    {
-        try {
-            // Delete file from storage
-            $upload->deleteFile();
-
-            // Delete thumbnails if they exist
-            $this->deleteThumbnails($upload);
-
-            // Delete upload record
-            $upload->delete();
-
-            return true;
-        } catch (Exception $e) {
-            Log::error('File deletion failed: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Delete thumbnails
-     *
-     * @param Upload $upload
-     */
-    protected function deleteThumbnails(Upload $upload): void
-    {
-        if (isset($upload->metadata['thumbnails'])) {
-            foreach ($upload->metadata['thumbnails'] as $thumbnailPath) {
-                try {
-                    Storage::disk($upload->disk)->delete($thumbnailPath);
-                } catch (Exception $e) {
-                    Log::error('Thumbnail deletion failed: ' . $e->getMessage());
-                }
-            }
-        }
-    }
-
-    /**
-     * Get user uploads with pagination
-     *
-     * @param User $user
-     * @param int|null $perPage
-     * @param string|null $fileType
-     * @param string|null $disk
-     * @return Collection|LengthAwarePaginator
-     */
-    public function getUserUploads(User $user, ?int $perPage = null, ?string $fileType = null, ?string $disk = null): Collection|LengthAwarePaginator
-    {
-        $query = Upload::byUser($user->id)
-            ->with('user')
-            ->latest('uploaded_at');
-
-        if ($fileType) {
-            $query->byFileType(FileTypeEnum::from($fileType));
-        }
-
-        if ($disk) {
-            $query->byDisk($disk);
-        }
-
-        return $perPage ? $query->paginate($perPage) : $query->get();
-    }
-
-    /**
-     * Get upload by ID for user
-     *
-     * @param int $uploadId
-     * @param User $user
-     * @return Upload|null
-     */
-    public function getUserUpload(int $uploadId, User $user): ?Upload
-    {
-        return Upload::where('id', $uploadId)
-            ->where('user_id', $user->id)
-            ->first();
-    }
-
-    /**
-     * Update upload metadata
-     *
-     * @param Upload $upload
-     * @param array $data
-     * @return Upload
-     */
-    public function updateUpload(Upload $upload, array $data): Upload
-    {
-        $upload->update($data);
-        return $upload;
-    }
-
-    /**
-     * Get file content
-     *
-     * @param Upload $upload
-     * @return string|null
-     */
-    public function getFileContent(Upload $upload): ?string
-    {
-        return $upload->getFileContent();
-    }
-
-    /**
-     * Get file stream
-     *
-     * @param Upload $upload
-     * @return resource|null
-     */
-    public function getFileStream(Upload $upload)
-    {
-        if ($upload->fileExists()) {
-            return Storage::disk($upload->disk)->readStream($upload->file_path);
-        }
-
-        return null;
-    }
-
-    /**
-     * Generate a temporary URL for private files
-     *
-     * @param Upload $upload
-     * @param DateTimeInterface $expiration
-     * @return string|null
-     */
-    public function getTemporaryUrl(Upload $upload, DateTimeInterface $expiration): ?string
-    {
-        try {
-            $storage = Storage::disk($upload->disk);
-
-            if (method_exists($storage, 'temporaryUrl')) {
-                return $storage->temporaryUrl($upload->file_path, $expiration);
-            }
-
-            return null;
-        } catch (Exception $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Get thumbnail URL
-     *
-     * @param Upload $upload
-     * @param string $size
-     * @return string|null
-     */
-    public function getThumbnailUrl(Upload $upload, string $size = 'thumb'): ?string
-    {
-        if (!$upload->isImage() || !isset($upload->metadata['thumbnails'][$size])) {
-            return null;
-        }
-
-        $thumbnailPath = $upload->metadata['thumbnails'][$size];
-
-        try {
-            return Storage::disk($upload->disk)->url($thumbnailPath);
-        } catch (Exception $e) {
-            return null;
-        }
-    }
-
-    /**
-     * Get upload statistics for user
-     *
-     * @param User $user
-     * @return array
-     */
-    public function getUserUploadStatistics(User $user): array
-    {
-        $stats = [
-            'total_uploads' => Upload::byUser($user->id)->count(),
-            'total_size' => Upload::byUser($user->id)->sum('file_size'),
-            'by_type' => Upload::byUser($user->id)
-                ->selectRaw('file_type, COUNT(*) as count, SUM(file_size) as total_size')
-                ->groupBy('file_type')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    return [$item->file_type->value => [
-                        'count' => $item->count,
-                        'total_size' => $item->total_size,
-                        'human_size' => $this->formatBytes($item->total_size),
-                    ]];
-                }),
-            'by_disk' => Upload::byUser($user->id)
-                ->selectRaw('disk, COUNT(*) as count, SUM(file_size) as total_size')
-                ->groupBy('disk')
-                ->get()
-                ->mapWithKeys(function ($item) {
-                    return [$item->disk => [
-                        'count' => $item->count,
-                        'total_size' => $item->total_size,
-                        'human_size' => $this->formatBytes($item->total_size),
-                    ]];
-                }),
-            'recent_uploads' => Upload::byUser($user->id)
-                ->latest('uploaded_at')
-                ->limit(5)
-                ->get()
-                ->map(function ($upload) {
-                    return [
-                        'id' => $upload->id,
-                        'original_name' => $upload->original_name,
-                        'file_type' => $upload->file_type->value,
-                        'file_size' => $upload->human_file_size,
-                        'uploaded_at' => $upload->uploaded_at->toISOString(),
-                    ];
-                }),
+        $allowedMimeTypes = [
+            // Images
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/bmp', 'image/tiff',
+            // Documents
+            'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'text/plain', 'text/csv', 'application/rtf',
+            // Videos
+            'video/mp4', 'video/avi', 'video/quicktime', 'video/x-msvideo', 'video/webm', 'video/ogg',
+            // Audio
+            'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/mp4', 'audio/webm', 'audio/flac',
+            // Archives
+            'application/zip', 'application/x-rar-compressed', 'application/x-7z-compressed', 'application/x-tar', 'application/gzip',
         ];
 
-        $stats['human_total_size'] = $this->formatBytes($stats['total_size']);
-
-        return $stats;
+        return in_array($mimeType, $allowedMimeTypes);
     }
 
     /**

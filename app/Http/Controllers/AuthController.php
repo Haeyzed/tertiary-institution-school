@@ -80,6 +80,7 @@ class AuthController extends Controller implements HasMiddleware
     /**
      * Register a new user.
      *
+     * @requestMediaType multipart/form-data
      * @param RegisterRequest $request
      * @return JsonResponse
      */

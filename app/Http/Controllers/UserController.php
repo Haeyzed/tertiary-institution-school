@@ -41,7 +41,7 @@ class UserController extends Controller
     {
         $this->userService = $userService;
         $this->aclService = $aclService;
-        $this->middleware('auth:api');
+//        $this->middleware('auth:api');
     }
 
     /**
@@ -100,6 +100,7 @@ class UserController extends Controller
     /**
      * Store a newly created user in storage.
      *
+     * @requestMediaType multipart/form-data
      * @param UserRequest $request
      * @return JsonResponse
      */
@@ -162,6 +163,7 @@ class UserController extends Controller
     /**
      * Update the specified user in storage.
      *
+     * @requestMediaType multipart/form-data
      * @param UserRequest $request
      * @param int $id
      * @return JsonResponse
@@ -260,6 +262,7 @@ class UserController extends Controller
     /**
      * Upload profile photo for a user.
      *
+     * @requestMediaType multipart/form-data
      * @param ProfilePhotoRequest $request
      * @param int $id
      * @return JsonResponse

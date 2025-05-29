@@ -10,10 +10,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Intervention\Image\Image;
+use Intervention\Image\ImageManager;
+use Intervention\Image\Drivers\Gd\Driver;
 use Log;
-
-//use Intervention\Image\Facades\Image;
 
 class FileStorageService
 {
@@ -33,6 +32,11 @@ class FileStorageService
     ];
 
     /**
+     * Image manager instance
+     */
+    protected ImageManager $imageManager;
+
+    /**
      * FileStorageService constructor.
      *
      * @param array $config
@@ -40,6 +44,7 @@ class FileStorageService
     public function __construct(array $config = [])
     {
         $this->config = array_merge($this->config, $config);
+        $this->imageManager = new ImageManager(new Driver());
     }
 
     /**
@@ -303,19 +308,24 @@ class FileStorageService
         try {
             $filePath = Storage::disk($upload->disk)->path($upload->file_path);
 
-            // Load image
-            $image = Image::make($filePath);
+            // Read image using new Intervention Image 3.x API
+            $image = $this->imageManager->read($filePath);
+
+            // Get original dimensions
+            $originalWidth = $image->width();
+            $originalHeight = $image->height();
 
             // Resize if needed
-            if ($image->width() > $config['image_max_width'] || $image->height() > $config['image_max_height']) {
-                $image->resize($config['image_max_width'], $config['image_max_height'], function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                });
+            if ($originalWidth > $config['image_max_width'] || $originalHeight > $config['image_max_height']) {
+                $image->scaleDown(
+                    width: $config['image_max_width'],
+                    height: $config['image_max_height']
+                );
             }
 
             // Save optimized image
-            $image->save($filePath, $config['image_quality']);
+            $encoded = $image->toJpeg($config['image_quality']);
+            file_put_contents($filePath, $encoded);
 
             // Generate thumbnails
             $this->generateThumbnails($upload, $image);
@@ -329,7 +339,7 @@ class FileStorageService
      * Generate thumbnails for images
      *
      * @param Upload $upload
-     * @param Image $image
+     * @param \Intervention\Image\Interfaces\ImageInterface $image
      */
     protected function generateThumbnails(Upload $upload, $image): void
     {
@@ -341,8 +351,11 @@ class FileStorageService
 
         foreach ($thumbnailSizes as $size => [$width, $height]) {
             try {
+                // Clone the image for thumbnail generation
                 $thumbnailImage = clone $image;
-                $thumbnailImage->fit($width, $height);
+
+                // Resize to fit within dimensions while maintaining aspect ratio
+                $thumbnailImage->cover($width, $height);
 
                 $thumbnailPath = $this->getThumbnailPath($upload->file_path, $size);
                 $fullThumbnailPath = Storage::disk($upload->disk)->path($thumbnailPath);
@@ -353,7 +366,9 @@ class FileStorageService
                     mkdir($directory, 0755, true);
                 }
 
-                $thumbnailImage->save($fullThumbnailPath, 80);
+                // Save thumbnail
+                $encoded = $thumbnailImage->toJpeg(80);
+                file_put_contents($fullThumbnailPath, $encoded);
 
                 // Update metadata with thumbnail info
                 $metadata = $upload->metadata ?? [];
