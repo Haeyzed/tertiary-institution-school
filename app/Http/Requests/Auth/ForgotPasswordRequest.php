@@ -2,12 +2,13 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Enums\UserTypeEnum;
 use App\Http\Requests\BaseRequest;
+use App\Models\User;
+use Illuminate\Validation\Rule;
 
 /**
- * Request validation for password reset request.
- *
- * Handles validation for initiating password reset process.
+ * Request validation for forgot password.
  */
 class ForgotPasswordRequest extends BaseRequest
 {
@@ -20,13 +21,36 @@ class ForgotPasswordRequest extends BaseRequest
     {
         return [
             /**
-             * The email address for password reset.
+             * The email address of the user.
              *
-             * Must exist in the users table.
              * @var string $email
              * @example "user@example.com"
              */
-            'email' => ['required', 'string', 'email', 'exists:users,email'],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                function ($attribute, $value, $fail) {
+                    $query = User::query()->where('email', $value);
+
+                    if ($this->has('user_type')) {
+                        $query->where('user_type', $this->input('user_type'));
+                    }
+
+                    if (!$query->exists()) {
+                        $fail('We could not find a user with that email address and user type.');
+                    }
+                }
+            ],
+
+            /**
+             * The user type for password reset.
+             *
+             * @var string|null $user_type
+             * @example "student"
+             */
+            'user_type' => ['nullable', 'string', Rule::in(UserTypeEnum::values())],
         ];
     }
 
@@ -38,9 +62,9 @@ class ForgotPasswordRequest extends BaseRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'Email is required',
-            'email.email' => 'Please enter a valid email address',
-            'email.exists' => 'No account found with this email address',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'user_type.in' => 'Invalid user type provided.',
         ];
     }
 }

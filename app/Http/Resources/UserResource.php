@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Upload;
+use App\Services\UploadService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -14,7 +16,7 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        $data = [
             /**
              * Unique identifier of the user.
              *
@@ -38,6 +40,14 @@ class UserResource extends JsonResource
              * @example "alice.johnson@example.com"
              */
             'email' => $this->email,
+
+            /**
+             * The user type.
+             *
+             * @var string|null $user_type
+             * @example "student"
+             */
+            'user_type' => $this->user_type?->value,
 
             /**
              * The phone number of the user.
@@ -64,12 +74,44 @@ class UserResource extends JsonResource
             'photo' => $this->photo,
 
             /**
+             * The profile photo URLs (if photo exists).
+             *
+             * @var array|null $photo_urls
+             */
+            'photo_urls' => $this->when($this->photo, function () {
+                $upload = Upload::query()->where('user_id', $this->id)
+                    ->where('file_path', $this->photo)
+                    ->first();
+
+                if ($upload) {
+                    $uploadService = app(UploadService::class);
+                    return [
+                        'original' => $upload->public_url,
+                        'thumbnails' => [
+                            'thumb' => $uploadService->getThumbnailUrl($upload, 'thumb'),
+                            'small' => $uploadService->getThumbnailUrl($upload, 'small'),
+                            'medium' => $uploadService->getThumbnailUrl($upload, 'medium'),
+                        ],
+                    ];
+                }
+                return null;
+            }),
+
+            /**
              * The residential address of the user.
              *
              * @var string|null $address
              * @example "789 Main Street, City, State, ZIP"
              */
             'address' => $this->address,
+
+            /**
+             * Whether the email has been verified.
+             *
+             * @var bool $email_verified
+             * @example true
+             */
+            'email_verified' => !is_null($this->email_verified_at),
 
             /**
              * Timestamp when the user account was created.
@@ -87,5 +129,21 @@ class UserResource extends JsonResource
              */
             'updated_at' => $this->updated_at,
         ];
+
+        // Include roles and permissions if they are loaded
+        if ($this->relationLoaded('roles')) {
+            $data['roles'] = $this->roles->pluck('name');
+        }
+
+        if ($this->relationLoaded('permissions')) {
+            $data['direct_permissions'] = $this->permissions->pluck('name');
+        }
+
+        // Include all permissions (from roles and direct) if requested
+        if ($request->has('include_all_permissions') && $request->include_all_permissions) {
+            $data['all_permissions'] = $this->getAllPermissions()->pluck('name')->unique()->values();
+        }
+
+        return $data;
     }
 }

@@ -2,23 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ChangePasswordRequest;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\UpdateProfileRequest;
+use App\Http\Requests\ProfilePhotoRequest;
 use App\Http\Resources\UserResource;
+use App\Http\Resources\UploadResource;
 use App\Services\AuthService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use InvalidArgumentException;
+use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
 /**
  * @tags Auth
  */
-class AuthController extends Controller
+class AuthController extends Controller implements HasMiddleware
 {
     /**
      * The auth service instance.
@@ -26,6 +31,16 @@ class AuthController extends Controller
      * @var AuthService
      */
     protected AuthService $authService;
+
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('auth:api', except: ['login', 'register', 'forgotPassword', 'resetPassword', 'verifyEmail']),
+        ];
+    }
 
     /**
      * Create a new controller instance.
@@ -47,11 +62,14 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         try {
-            $result = $this->authService->login($request->validated());
+            $relations = $request->input('with', []);
+            $result = $this->authService->login($request->validated(), $relations);
 
             return response()->success([
                 'user' => new UserResource($result['user']),
                 'token' => $result['token'],
+                'token_type' => $result['token_type'],
+                'expires_in' => $result['expires_in'],
             ], 'Login successful');
         } catch (AuthenticationException $e) {
             return response()->error($e->getMessage(), null, 401);
@@ -66,21 +84,27 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $result = $this->authService->register($request->validated());
+        try {
+            $relations = $request->input('with', []);
+            $result = $this->authService->register($request->validated(), $relations);
 
-        return response()->success([
-            'user' => new UserResource($result['user']),
-            'token' => $result['token'],
-        ], 'Registration successful', 201);
+            return response()->success([
+                'user' => new UserResource($result['user']),
+                'token' => $result['token'],
+                'token_type' => $result['token_type'],
+                'expires_in' => $result['expires_in'],
+            ], 'Registration successful', 201);
+        } catch (InvalidArgumentException $e) {
+            return response()->error($e->getMessage(), null, 422);
+        }
     }
 
     /**
      * Logout the authenticated user.
      *
-     * @param Request $request
      * @return JsonResponse
      */
-    public function logout(Request $request): JsonResponse
+    public function logout(): JsonResponse
     {
         $this->authService->logout();
 
@@ -95,11 +119,14 @@ class AuthController extends Controller
      */
     public function refreshToken(Request $request): JsonResponse
     {
-        $result = $this->authService->refreshToken();
+        $relations = $request->input('with', []);
+        $result = $this->authService->refreshToken($relations);
 
         return response()->success([
             'user' => new UserResource($result['user']),
             'token' => $result['token'],
+            'token_type' => $result['token_type'],
+            'expires_in' => $result['expires_in'],
         ], 'Token refreshed successfully');
     }
 
@@ -108,13 +135,20 @@ class AuthController extends Controller
      *
      * @param Request $request
      * @return JsonResponse
+     * @throws JWTException
      */
     public function profile(Request $request): JsonResponse
     {
-        $user = $this->authService->getProfile();
+        $relations = $request->input('with', []);
+        $user = $this->authService->getProfile($relations);
+
+        $resource = new UserResource($user);
+        if ($request->has('include_all_permissions')) {
+            $resource->additional(['include_all_permissions' => true]);
+        }
 
         return response()->success(
-            new UserResource($user),
+            $resource,
             'Profile retrieved successfully'
         );
     }
@@ -124,15 +158,72 @@ class AuthController extends Controller
      *
      * @param UpdateProfileRequest $request
      * @return JsonResponse
+     * @throws JWTException
      */
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
-        $user = $this->authService->updateProfile($request->validated());
+        try {
+            $relations = $request->input('with', []);
+            $user = $this->authService->updateProfile($request->validated(), $relations);
 
-        return response()->success(
-            new UserResource($user),
-            'Profile updated successfully'
-        );
+            return response()->success(
+                new UserResource($user),
+                'Profile updated successfully'
+            );
+        } catch (InvalidArgumentException $e) {
+            return response()->error($e->getMessage(), null, 422);
+        }
+    }
+
+    /**
+     * Upload user profile photo.
+     *
+     * @param ProfilePhotoRequest $request
+     * @return JsonResponse
+     */
+    public function uploadProfilePhoto(ProfilePhotoRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->authService->uploadProfilePhoto($request->file('photo'));
+
+            return response()->success([
+                'user' => new UserResource($result['user']),
+                'upload' => new UploadResource($result['upload']),
+                'photo_url' => $result['photo_url'],
+                'thumbnails' => $result['thumbnails'],
+            ], 'Profile photo uploaded successfully');
+
+        } catch (\Exception $e) {
+            return response()->error(
+                $e->getMessage(),
+                null,
+                422
+            );
+        }
+    }
+
+    /**
+     * Remove user profile photo.
+     *
+     * @return JsonResponse
+     */
+    public function removeProfilePhoto(): JsonResponse
+    {
+        try {
+            $user = $this->authService->removeProfilePhoto();
+
+            return response()->success(
+                new UserResource($user),
+                'Profile photo removed successfully'
+            );
+
+        } catch (\Exception $e) {
+            return response()->error(
+                $e->getMessage(),
+                null,
+                400
+            );
+        }
     }
 
     /**
@@ -140,6 +231,7 @@ class AuthController extends Controller
      *
      * @param ChangePasswordRequest $request
      * @return JsonResponse
+     * @throws JWTException
      */
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
@@ -163,7 +255,10 @@ class AuthController extends Controller
      */
     public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $success = $this->authService->forgotPassword($request->email);
+        $success = $this->authService->forgotPassword(
+            $request->email,
+            $request->user_type
+        );
 
         if ($success) {
             return response()->success(null, 'Password reset link sent to your email');
@@ -187,5 +282,43 @@ class AuthController extends Controller
         }
 
         return response()->error('Failed to reset password', null, 400);
+    }
+
+    /**
+     * Verify email address.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function verifyEmail(Request $request): JsonResponse
+    {
+        $userId = $request->route('id');
+        $hash = $request->route('hash');
+        $userType = $request->query('user_type');
+
+        $success = $this->authService->verifyEmail($userId, $hash, $userType);
+
+        if ($success) {
+            return response()->success(null, 'Email verified successfully');
+        }
+
+        return response()->error('Invalid verification link', null, 400);
+    }
+
+    /**
+     * Resend email verification notification.
+     *
+     * @return JsonResponse
+     * @throws JWTException
+     */
+    public function resendEmailVerification(): JsonResponse
+    {
+        $success = $this->authService->resendEmailVerification();
+
+        if ($success) {
+            return response()->success(null, 'Verification email sent');
+        }
+
+        return response()->error('Email already verified', null, 400);
     }
 }

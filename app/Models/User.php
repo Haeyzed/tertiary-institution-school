@@ -2,19 +2,23 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\GenderEnum;
+use App\Enums\UserTypeEnum;
+use App\Notifications\ResetPasswordNotification;
+use App\Notifications\VerifyEmailNotification;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable implements JWTSubject, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes, HasRoles;
@@ -32,6 +36,8 @@ class User extends Authenticatable implements JWTSubject
         'gender',
         'photo',
         'address',
+        'user_type',
+        'email_verified_at',
     ];
 
     /**
@@ -54,6 +60,7 @@ class User extends Authenticatable implements JWTSubject
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'user_type' => UserTypeEnum::class,
         ];
     }
 
@@ -125,7 +132,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function isMale(): bool
     {
-        return $this->hasGender(GenderEnum::MALE);
+        return $this->hasGender(GenderEnum::MALE->value);
     }
 
     /**
@@ -135,7 +142,7 @@ class User extends Authenticatable implements JWTSubject
      */
     public function isFemale(): bool
     {
-        return $this->hasGender(GenderEnum::FEMALE);
+        return $this->hasGender(GenderEnum::FEMALE->value);
     }
 
     /**
@@ -145,7 +152,17 @@ class User extends Authenticatable implements JWTSubject
      */
     public function isOtherGender(): bool
     {
-        return $this->hasGender(GenderEnum::OTHER);
+        return $this->hasGender(GenderEnum::OTHER->value);
+    }
+
+    /**
+     * Check if the user is a super admin.
+     *
+     * @return bool
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
     }
 
     /**
@@ -165,6 +182,43 @@ class User extends Authenticatable implements JWTSubject
      */
     public function getJWTCustomClaims(): array
     {
-        return [];
+        return [
+            'name' => $this->name,
+            'email' => $this->email,
+            'user_type' => $this->user_type?->value,
+            'roles' => $this->roles->pluck('name')->toArray(),
+            'permissions' => $this->getAllPermissions()->pluck('name')->toArray(),
+        ];
+    }
+
+    /**
+     * Send the password reset notification.
+     *
+     * @param string $token
+     * @return void
+     */
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new ResetPasswordNotification($token));
+    }
+
+    /**
+     * Send the email verification notification.
+     *
+     * @return void
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification());
+    }
+
+    /**
+     * Get all permissions for the user, filtering out duplicates.
+     *
+     * @return Collection
+     */
+    public function getAllUniquePermissions(): Collection
+    {
+        return $this->getAllPermissions()->unique('id');
     }
 }

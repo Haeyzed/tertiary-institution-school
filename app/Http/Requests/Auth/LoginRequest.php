@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Enums\UserTypeEnum;
 use App\Http\Requests\BaseRequest;
+use Illuminate\Validation\Rule;
 
 /**
  * Request validation for user login.
- *
- * Handles validation for user authentication.
  */
 class LoginRequest extends BaseRequest
 {
@@ -20,22 +20,36 @@ class LoginRequest extends BaseRequest
     {
         return [
             /**
-             * The email address for login.
+             * The email address of the user.
              *
-             * Must be a valid email format.
              * @var string $email
              * @example "user@example.com"
              */
-            'email' => ['required', 'string', 'email'],
+            'email' => ['required', 'string', 'email', 'max:255'],
 
             /**
-             * The password for login.
+             * The password for the user account.
              *
-             * User's account password.
              * @var string $password
-             * @example "userpassword123"
+             * @example "password123"
              */
             'password' => ['required', 'string'],
+
+            /**
+             * The user type for authentication.
+             *
+             * @var string|null $user_type
+             * @example "student"
+             */
+            'user_type' => ['nullable', 'string', Rule::in(UserTypeEnum::values())],
+
+            /**
+             * Relations to load with the user.
+             *
+             * @var array|null $with
+             * @example ["roles", "permissions"]
+             */
+            'with' => ['nullable', 'array'],
         ];
     }
 
@@ -47,9 +61,10 @@ class LoginRequest extends BaseRequest
     public function messages(): array
     {
         return [
-            'email.required' => 'Email is required',
-            'email.email' => 'Please enter a valid email address',
-            'password.required' => 'Password is required',
+            'email.required' => 'Email address is required.',
+            'email.email' => 'Please provide a valid email address.',
+            'password.required' => 'Password is required.',
+            'user_type.in' => 'Invalid user type provided.',
         ];
     }
 }

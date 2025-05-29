@@ -169,7 +169,7 @@ class DashboardController extends Controller
      */
     public function recentActivities(Request $request): JsonResponse
     {
-        $limit = $request->query('limit', 10);
+        $limit = $request->query('limit', config('app.limit'));
         $activities = $this->dashboardMetricsService->getRecentActivities($limit);
 
         return response()->success(
@@ -203,7 +203,7 @@ class DashboardController extends Controller
      */
     public function topPerformingStudents(Request $request): JsonResponse
     {
-        $limit = $request->query('limit', 10);
+        $limit = $request->query('limit', config('app.limit'));
         $students = $this->dashboardMetricsService->getTopPerformingStudents($limit);
 
         return response()->success(

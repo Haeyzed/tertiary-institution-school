@@ -147,16 +147,4 @@ return [
 
     'limit' => env('APP_LIMIT', 5),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Frontend Application URL
-    |--------------------------------------------------------------------------
-    |
-    | This URL points to the frontend application and is used in places
-    | like email templates or redirects from API responses.
-    |
-    */
-
-    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
-
 ];

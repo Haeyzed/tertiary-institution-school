@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\GenderEnum;
+use App\Enums\UserTypeEnum;
 use Illuminate\Validation\Rule;
 
 /**
@@ -19,6 +20,8 @@ class UserRequest extends BaseRequest
      */
     public function rules(): array
     {
+        $userId = $this->route('user');
+
         return [
             /**
              * The full name of the user.
@@ -36,7 +39,32 @@ class UserRequest extends BaseRequest
              * @var string $email
              * @example "alice.johnson@example.com"
              */
-            'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($this->route('user'))],
+            'email' => [
+                'required',
+                'string',
+                'email',
+                'max:255',
+                function ($attribute, $value, $fail) use ($userId) {
+                    $query = \App\Models\User::where('email', $value);
+
+                    if ($this->has('user_type')) {
+                        $query->where('user_type', $this->input('user_type'));
+                    } else {
+                        $user = \App\Models\User::find($userId);
+                        if ($user) {
+                            $query->where('user_type', $user->user_type);
+                        }
+                    }
+
+                    if ($userId) {
+                        $query->where('id', '!=', $userId);
+                    }
+
+                    if ($query->exists()) {
+                        $fail('The email has already been taken for this user type.');
+                    }
+                }
+            ],
 
             /**
              * The phone number of the user.
@@ -82,6 +110,40 @@ class UserRequest extends BaseRequest
              * @example "securepassword123"
              */
             'password' => ['nullable', 'string', 'min:8'],
+
+            /**
+             * The user type.
+             *
+             * @var string|null $user_type
+             * @example "student"
+             */
+            'user_type' => ['nullable', 'string', Rule::in(UserTypeEnum::values())],
+
+            /**
+             * The roles to assign to the user.
+             *
+             * @var array|null $roles
+             * @example ["admin", "staff"]
+             */
+            'roles' => ['nullable', 'array'],
+            'roles.*' => ['string', 'exists:roles,name'],
+
+            /**
+             * The permissions to assign to the user.
+             *
+             * @var array|null $permissions
+             * @example ["create-user", "edit-user"]
+             */
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', 'exists:permissions,name'],
+
+            /**
+             * Relations to load with the user.
+             *
+             * @var array|null $with
+             * @example ["roles", "permissions"]
+             */
+            'with' => ['nullable', 'array'],
         ];
     }
 
@@ -96,6 +158,9 @@ class UserRequest extends BaseRequest
             'email.unique' => 'This email address is already in use.',
             'password.min' => 'Password must be at least 8 characters long.',
             'gender.in' => 'Gender must be male, female, or other.',
+            'user_type.in' => 'Invalid user type provided.',
+            'roles.*.exists' => 'One or more selected roles do not exist.',
+            'permissions.*.exists' => 'One or more selected permissions do not exist.',
         ];
     }
 }
