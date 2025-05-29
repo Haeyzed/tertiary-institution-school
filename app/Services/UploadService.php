@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\FileTypeEnum;
 use App\Models\Upload;
 use App\Models\User;
+use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -12,6 +13,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Log;
 
 class UploadService
 {
@@ -53,7 +55,7 @@ class UploadService
      * @param User $user
      * @param array $options
      * @return Upload
-     * @throws \Exception
+     * @throws Exception
      */
     public function uploadFile(UploadedFile $file, User $user, array $options = []): Upload
     {
@@ -95,8 +97,8 @@ class UploadService
             if ($file instanceof UploadedFile) {
                 try {
                     $uploads[] = $this->uploadFile($file, $user, $options);
-                } catch (\Exception $e) {
-                    \Log::error('File upload failed: ' . $e->getMessage());
+                } catch (Exception $e) {
+                    Log::error('File upload failed: ' . $e->getMessage());
                 }
             }
         }
@@ -110,15 +112,15 @@ class UploadService
      * @param UploadedFile $file
      * @param User $user
      * @return Upload
-     * @throws \Exception
+     * @throws Exception
      */
     public function uploadProfilePhoto(UploadedFile $file, User $user): Upload
     {
         $options = [
-            'disk' => 'public',
+            'disk' => config('filesystems.default'),
             'folder' => 'uploads/profiles',
             'is_public' => true,
-            'generate_thumbnails' => true,
+            'generate_thumbnails' => false,
             'max_file_size' => 5242880, // 5MB
             'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
             'image_quality' => 90,
@@ -151,7 +153,7 @@ class UploadService
             return false;
         }
 
-        $upload = Upload::where('user_id', $user->id)
+        $upload = Upload::query()->where('user_id', $user->id)
             ->where('file_path', $user->photo)
             ->first();
 
@@ -198,7 +200,7 @@ class UploadService
      */
     public function getUserUpload(int $uploadId, User $user): ?Upload
     {
-        return Upload::where('id', $uploadId)
+        return Upload::query()->where('id', $uploadId)
             ->where('user_id', $user->id)
             ->first();
     }
@@ -235,8 +237,8 @@ class UploadService
             $upload->delete();
 
             return true;
-        } catch (\Exception $e) {
-            \Log::error('File deletion failed: ' . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error('File deletion failed: ' . $e->getMessage());
             return false;
         }
     }
@@ -284,7 +286,7 @@ class UploadService
             }
 
             return null;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }
@@ -306,7 +308,7 @@ class UploadService
 
         try {
             return Storage::disk($upload->disk)->url($thumbnailPath);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return null;
         }
     }
@@ -320,9 +322,9 @@ class UploadService
     public function getUserUploadStatistics(User $user): array
     {
         $stats = [
-            'total_uploads' => Upload::byUser($user->id)->count(),
-            'total_size' => Upload::byUser($user->id)->sum('file_size'),
-            'by_type' => Upload::byUser($user->id)
+            'total_uploads' => Upload::query()->byUser($user->id)->count(),
+            'total_size' => Upload::query()->byUser($user->id)->sum('file_size'),
+            'by_type' => Upload::query()->byUser($user->id)
                 ->selectRaw('file_type, COUNT(*) as count, SUM(file_size) as total_size')
                 ->groupBy('file_type')
                 ->get()
@@ -333,7 +335,7 @@ class UploadService
                         'human_size' => $this->formatBytes($item->total_size),
                     ]];
                 }),
-            'by_disk' => Upload::byUser($user->id)
+            'by_disk' => Upload::query()->byUser($user->id)
                 ->selectRaw('disk, COUNT(*) as count, SUM(file_size) as total_size')
                 ->groupBy('disk')
                 ->get()
@@ -344,7 +346,7 @@ class UploadService
                         'human_size' => $this->formatBytes($item->total_size),
                     ]];
                 }),
-            'recent_uploads' => Upload::byUser($user->id)
+            'recent_uploads' => Upload::query()->byUser($user->id)
                 ->latest('uploaded_at')
                 ->limit(5)
                 ->get()
@@ -369,32 +371,32 @@ class UploadService
      *
      * @param UploadedFile $file
      * @param array $config
-     * @throws \Exception
+     * @throws Exception
      */
     protected function validateFile(UploadedFile $file, array $config): void
     {
         // Check if file is valid
         if (!$file->isValid()) {
-            throw new \Exception('Invalid file upload');
+            throw new Exception('Invalid file upload');
         }
 
         // Check file size
         if ($file->getSize() > $config['max_file_size']) {
-            throw new \Exception('File size exceeds maximum allowed size');
+            throw new Exception('File size exceeds maximum allowed size');
         }
 
         // Check file extension
         if (!empty($config['allowed_extensions'])) {
             $extension = strtolower($file->getClientOriginalExtension());
             if (!in_array($extension, $config['allowed_extensions'])) {
-                throw new \Exception('File type not allowed');
+                throw new Exception('File type not allowed');
             }
         }
 
         // Check MIME type
         $mimeType = $file->getMimeType();
         if (!$this->isAllowedMimeType($mimeType)) {
-            throw new \Exception('File MIME type not allowed');
+            throw new Exception('File MIME type not allowed');
         }
     }
 
@@ -533,8 +535,8 @@ class UploadService
             // Generate thumbnails
             $this->generateThumbnails($upload, $image);
 
-        } catch (\Exception $e) {
-            \Log::error('Image processing failed: ' . $e->getMessage());
+        } catch (Exception $e) {
+            Log::error('Image processing failed: ' . $e->getMessage());
         }
     }
 
@@ -578,8 +580,8 @@ class UploadService
                 $metadata['thumbnails'][$size] = $thumbnailPath;
                 $upload->update(['metadata' => $metadata]);
 
-            } catch (\Exception $e) {
-                \Log::error("Thumbnail generation failed for size {$size}: " . $e->getMessage());
+            } catch (Exception $e) {
+                Log::error("Thumbnail generation failed for size {$size}: " . $e->getMessage());
             }
         }
     }
@@ -595,8 +597,8 @@ class UploadService
             foreach ($upload->metadata['thumbnails'] as $thumbnailPath) {
                 try {
                     Storage::disk($upload->disk)->delete($thumbnailPath);
-                } catch (\Exception $e) {
-                    \Log::error('Thumbnail deletion failed: ' . $e->getMessage());
+                } catch (Exception $e) {
+                    Log::error('Thumbnail deletion failed: ' . $e->getMessage());
                 }
             }
         }
