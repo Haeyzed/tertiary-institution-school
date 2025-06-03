@@ -16,16 +16,27 @@ class StaffService
     /**
      * Get all staff with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllStaff(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllStaff(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Staff::query();
+        $query = Staff::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('position', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -132,29 +143,50 @@ class StaffService
     }
 
     /**
-     * Delete a staff.
+     * Delete or force delete a staff.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      * @throws Exception|Throwable
      */
-    public function deleteStaff(int $id): bool
+    public function deleteStaff(int $id, bool $force = false): bool
     {
-        $staff = Staff::query()->find($id);
+        $staff = Staff::withTrashed()->find($id);
 
         if (!$staff) {
             return false;
         }
 
-        return DB::transaction(function () use ($staff) {
-            // Delete the staff record
-            $staff->delete();
-
-            // Delete the associated user account
-            $staff->user->delete();
-
+        return DB::transaction(function () use ($staff, $force) {
+            if ($force) {
+                $staff->forceDelete();
+                $staff->user->forceDelete();
+            } else {
+                $staff->delete();
+                $staff->user->delete();
+            }
             return true;
         });
+    }
+
+    /**
+     * Restore a delete staff.
+     *
+     * @param int $id
+     * @return Staff|null
+     */
+    public function restoreStaff(int $id): ?Staff
+    {
+        $staff = Staff::onlyTrashed()->find($id);
+
+        if (!$staff) {
+            return null;
+        }
+
+        $staff->restore();
+
+        return $staff->fresh();
     }
 
     /**

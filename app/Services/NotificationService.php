@@ -11,16 +11,28 @@ class NotificationService
     /**
      * Get all notifications with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllNotifications(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllNotifications(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Notification::query();
+        $query = Notification::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('title', "%$term%")
+                    ->orwhereLike('message', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +88,40 @@ class NotificationService
     }
 
     /**
-     * Delete a notification.
+     * Delete or force delete a notification.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteNotification(int $id): bool
+    public function deleteNotification(int $id, bool $force = false): bool
     {
-        $notification = Notification::query()->find($id);
+        $notification = Notification::withTrashed()->find($id);
 
         if (!$notification) {
             return false;
         }
 
-        return $notification->delete();
+        return $force ? $notification->forceDelete() : $notification->delete();
+    }
+
+    /**
+     * Restore a delete notification.
+     *
+     * @param int $id
+     * @return Notification|null
+     */
+    public function restoreNotification(int $id): ?Notification
+    {
+        $notification = Notification::onlyTrashed()->find($id);
+
+        if (!$notification) {
+            return null;
+        }
+
+        $notification->restore();
+
+        return $notification->fresh();
     }
 
     /**

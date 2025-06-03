@@ -11,16 +11,28 @@ class ProgramService
     /**
      * Get all programs with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllPrograms(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllPrograms(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Program::query();
+        $query = Program::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%")
+                    ->orwhereLike('code', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +88,40 @@ class ProgramService
     }
 
     /**
-     * Delete a program.
+     * Delete or force delete a program.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteProgram(int $id): bool
+    public function deleteProgram(int $id, bool $force = false): bool
     {
-        $program = Program::query()->find($id);
+        $program = Program::withTrashed()->find($id);
 
         if (!$program) {
             return false;
         }
 
-        return $program->delete();
+        return $force ? $program->forceDelete() : $program->delete();
+    }
+
+    /**
+     * Restore a delete program.
+     *
+     * @param int $id
+     * @return Program|null
+     */
+    public function restoreProgram(int $id): ?Program
+    {
+        $program = Program::onlyTrashed()->find($id);
+
+        if (!$program) {
+            return null;
+        }
+
+        $program->restore();
+
+        return $program->fresh();
     }
 
     /**

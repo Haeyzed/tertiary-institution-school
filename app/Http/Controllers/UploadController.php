@@ -44,8 +44,9 @@ class UploadController extends Controller
         $perPage = $request->query('per_page', config('app.per_page'));
         $fileType = $request->query('file_type');
         $disk = $request->query('disk');
+        $term = $request->query('term', '');
 
-        $uploads = $this->uploadService->getUserUploads($user, $perPage, $fileType, $disk);
+        $uploads = $this->uploadService->getUserUploads($term, $user, $perPage, $fileType, $disk);
 
         return response()->paginated(
             UploadResource::collection($uploads),
@@ -189,10 +190,13 @@ class UploadController extends Controller
      * Remove the specified upload.
      *
      * @param Upload $upload
+     * @param Request $request
      * @return JsonResponse
      */
-    public function destroy(Upload $upload): JsonResponse
+    public function destroy(Upload $upload, Request $request): JsonResponse
     {
+        $force = $request->boolean('force');
+
         $user = Auth::user();
 
         // Check if user owns the file
@@ -200,7 +204,7 @@ class UploadController extends Controller
             return response()->error('Unauthorized', null, 403);
         }
 
-        if ($this->uploadService->deleteUpload($upload)) {
+        if ($this->uploadService->deleteUpload($upload, $force)) {
             return response()->success(null, 'Upload deleted successfully');
         }
 

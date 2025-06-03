@@ -38,12 +38,14 @@ class SemesterController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $semesters = $this->semesterService->getAllSemesters($perPage, $relations);
+        $semesters = $this->semesterService->getAllSemesters($term, $perPage, $relations, $deleted);
 
         return response()->success(
             SemesterResource::collection($semesters),
@@ -119,12 +121,15 @@ class SemesterController extends Controller
     /**
      * Remove the specified semester from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->semesterService->deleteSemester($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->semesterService->deleteSemester($id, $force);
 
         if (!$deleted) {
             return response()->error('Semester not found', null, 404);
@@ -133,6 +138,26 @@ class SemesterController extends Controller
         return response()->success(
             null,
             'Semester deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted semester.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->semesterService->restoreSemester($id);
+
+        if (!$restored) {
+            return response()->error('Semester not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new SemesterResource($restored),
+            'Semester restored successfully'
         );
     }
 

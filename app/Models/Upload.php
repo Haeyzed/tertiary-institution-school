@@ -3,12 +3,14 @@
 namespace App\Models;
 
 use App\Enums\FileTypeEnum;
+use DateTimeInterface;
 use Exception;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use Log;
 
 class Upload extends Model
 {
@@ -35,7 +37,22 @@ class Upload extends Model
     ];
 
     /**
-     * Get the user that uploaded the file.
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'file_type' => FileTypeEnum::class,
+            'metadata' => 'array',
+            'is_public' => 'boolean',
+            'uploaded_at' => 'datetime',
+        ];
+    }
+
+    /**
+     * Get the user that owns the upload.
      */
     public function user(): BelongsTo
     {
@@ -43,38 +60,68 @@ class Upload extends Model
     }
 
     /**
+     * Scope a query to only include uploads by a specific user.
+     */
+    public function scopeByUser($query, int $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
+
+    /**
+     * Scope a query to only include uploads of a specific file type.
+     */
+    public function scopeByFileType($query, FileTypeEnum $fileType)
+    {
+        return $query->where('file_type', $fileType);
+    }
+
+    /**
+     * Scope a query to only include uploads from a specific disk.
+     */
+    public function scopeByDisk($query, string $disk)
+    {
+        return $query->where('disk', $disk);
+    }
+
+    /**
+     * Scope a query to only include public uploads.
+     */
+    public function scopePublic($query)
+    {
+        return $query->where('is_public', true);
+    }
+
+    /**
      * Get the public URL for the file.
-     *
-     * @return string|null
      */
     public function getPublicUrlAttribute(): ?string
     {
-        if (!$this->file_path) {
+        if (!$this->fileExists()) {
             return null;
         }
 
         try {
             $storage = Storage::disk($this->disk);
 
+            // For S3 and other cloud storage, use the url() method
+            if (in_array($this->disk, ['s3', 'spaces', 'gcs'])) {
+                return $storage->url($this->file_path);
+            }
+
+            // For local storage, check if it's public
             if ($this->is_public) {
                 return $storage->url($this->file_path);
             }
 
-            // For private files, generate a temporary URL (if supported)
-            if (method_exists($storage, 'temporaryUrl')) {
-                return $storage->temporaryUrl($this->file_path, now()->addHours(1));
-            }
-
             return null;
         } catch (Exception $e) {
+            Log::error('Failed to generate public URL for upload: ' . $e->getMessage());
             return null;
         }
     }
 
     /**
      * Get the download URL for the file.
-     *
-     * @return string
      */
     public function getDownloadUrlAttribute(): string
     {
@@ -83,13 +130,11 @@ class Upload extends Model
 
     /**
      * Get human-readable file size.
-     *
-     * @return string
      */
     public function getHumanFileSizeAttribute(): string
     {
-        $bytes = $this->file_size;
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $bytes = $this->file_size;
 
         for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
             $bytes /= 1024;
@@ -99,47 +144,51 @@ class Upload extends Model
     }
 
     /**
-     * Delete the file from storage.
-     *
-     * @return bool
-     */
-    public function deleteFile(): bool
-    {
-        if ($this->fileExists()) {
-            return Storage::disk($this->disk)->delete($this->file_path);
-        }
-
-        return true;
-    }
-
-    /**
      * Check if the file exists on disk.
-     *
-     * @return bool
      */
     public function fileExists(): bool
     {
-        return Storage::disk($this->disk)->exists($this->file_path);
+        try {
+            return Storage::disk($this->disk)->exists($this->file_path);
+        } catch (Exception $e) {
+            return false;
+        }
     }
 
     /**
-     * Get file content.
-     *
-     * @return string|null
+     * Delete the file from storage.
+     */
+    public function deleteFile(): bool
+    {
+        try {
+            if ($this->fileExists()) {
+                return Storage::disk($this->disk)->delete($this->file_path);
+            }
+            return true;
+        } catch (Exception $e) {
+            Log::error('Failed to delete file: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get the file content.
      */
     public function getFileContent(): ?string
     {
-        if ($this->fileExists()) {
-            return Storage::disk($this->disk)->get($this->file_path);
+        try {
+            if ($this->fileExists()) {
+                return Storage::disk($this->disk)->get($this->file_path);
+            }
+            return null;
+        } catch (Exception $e) {
+            Log::error('Failed to get file content: ' . $e->getMessage());
+            return null;
         }
-
-        return null;
     }
 
     /**
      * Check if the file is an image.
-     *
-     * @return bool
      */
     public function isImage(): bool
     {
@@ -148,8 +197,6 @@ class Upload extends Model
 
     /**
      * Check if the file is a document.
-     *
-     * @return bool
      */
     public function isDocument(): bool
     {
@@ -158,8 +205,6 @@ class Upload extends Model
 
     /**
      * Check if the file is a video.
-     *
-     * @return bool
      */
     public function isVideo(): bool
     {
@@ -167,9 +212,7 @@ class Upload extends Model
     }
 
     /**
-     * Check if the file is an audio file.
-     *
-     * @return bool
+     * Check if the file is audio.
      */
     public function isAudio(): bool
     {
@@ -177,76 +220,73 @@ class Upload extends Model
     }
 
     /**
-     * Scope to filter by user.
-     *
-     * @param Builder $query
-     * @param int $userId
-     * @return Builder
+     * Check if the file is an archive.
      */
-    public function scopeByUser(Builder $query, int $userId): Builder
+    public function isArchive(): bool
     {
-        return $query->where('user_id', $userId);
+        return $this->file_type === FileTypeEnum::ARCHIVE;
     }
 
     /**
-     * Scope to filter by file type.
-     *
-     * @param Builder $query
-     * @param FileTypeEnum $fileType
-     * @return Builder
+     * Get thumbnail URL for a specific size.
      */
-    public function scopeByFileType(Builder $query, FileTypeEnum $fileType): Builder
+    public function getThumbnailUrl(string $size = 'thumb'): ?string
     {
-        return $query->where('file_type', $fileType);
+        if (!$this->isImage() || !isset($this->metadata['thumbnails'][$size])) {
+            return null;
+        }
+
+        $thumbnailPath = $this->metadata['thumbnails'][$size];
+
+        try {
+            $storage = Storage::disk($this->disk);
+
+            // For S3 and other cloud storage, use the url() method
+            if (in_array($this->disk, ['s3', 'spaces', 'gcs'])) {
+                return $storage->url($thumbnailPath);
+            }
+
+            // For local storage
+            return $storage->url($thumbnailPath);
+        } catch (Exception $e) {
+            Log::error('Failed to generate thumbnail URL: ' . $e->getMessage());
+            return null;
+        }
     }
 
     /**
-     * Scope to filter by disk.
-     *
-     * @param Builder $query
-     * @param string $disk
-     * @return Builder
+     * Get all available thumbnail URLs.
      */
-    public function scopeByDisk(Builder $query, string $disk): Builder
+    public function getThumbnailUrls(): array
     {
-        return $query->where('disk', $disk);
+        if (!$this->isImage() || !isset($this->metadata['thumbnails'])) {
+            return [];
+        }
+
+        $thumbnails = [];
+        foreach ($this->metadata['thumbnails'] as $size => $path) {
+            $thumbnails[$size] = $this->getThumbnailUrl($size);
+        }
+
+        return array_filter($thumbnails); // Remove null values
     }
 
     /**
-     * Scope to filter public files.
-     *
-     * @param Builder $query
-     * @return Builder
+     * Generate a temporary URL for private files.
      */
-    public function scopePublic(Builder $query): Builder
+    public function getTemporaryUrl(DateTimeInterface $expiration): ?string
     {
-        return $query->where('is_public', true);
-    }
+        try {
+            $storage = Storage::disk($this->disk);
 
-    /**
-     * Scope to filter private files.
-     *
-     * @param Builder $query
-     * @return Builder
-     */
-    public function scopePrivate(Builder $query): Builder
-    {
-        return $query->where('is_public', false);
-    }
+            if (method_exists($storage, 'temporaryUrl')) {
+                return $storage->temporaryUrl($this->file_path, $expiration);
+            }
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
-    {
-        return [
-            'file_size' => 'integer',
-            'is_public' => 'boolean',
-            'metadata' => 'array',
-            'uploaded_at' => 'datetime',
-            'file_type' => FileTypeEnum::class,
-        ];
+            return null;
+        } catch (Exception $e) {
+            Log::error('Failed to generate temporary URL: ' . $e->getMessage());
+            return null;
+        }
     }
 }

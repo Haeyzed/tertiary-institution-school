@@ -21,13 +21,17 @@ class RoleService
     /**
      * Get all roles with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllRoles(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllRoles(string $term, ?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
     {
-        $query = Role::query();
+        $query = Role::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);

@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('status')->default(PaymentStatusEnum::PENDING);
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

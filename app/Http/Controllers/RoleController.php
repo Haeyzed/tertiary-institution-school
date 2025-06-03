@@ -46,12 +46,14 @@ class RoleController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', ['permissions']);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $roles = $this->roleService->getAllRoles($perPage, $relations);
+        $roles = $this->roleService->getAllRoles($term, $perPage, $relations, $deleted);
 
         return response()->success(
             RoleResource::collection($roles),
@@ -116,14 +118,17 @@ class RoleController extends Controller
     /**
      * Remove the specified role from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $result = $this->roleService->deleteRole($id);
+        $force = $request->boolean('force');
 
-        if (!$result) {
+        $deleted = $this->roleService->deleteRole($id, $force);
+
+        if (!$deleted) {
             return response()->error('Role not found or cannot be deleted', null, 404);
         }
 

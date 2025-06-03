@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreignId('grade_id')->nullable()->constrained()->onDelete('set null');
             $table->text('remarks')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -38,12 +38,14 @@ class GradeController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $grades = $this->gradeService->getAllGrades($perPage, $relations);
+        $grades = $this->gradeService->getAllGrades($term, $perPage, $relations, $relations, $deleted);
 
         return response()->success(
             GradeResource::collection($grades),
@@ -119,12 +121,15 @@ class GradeController extends Controller
     /**
      * Remove the specified grade from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->gradeService->deleteGrade($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->gradeService->deleteGrade($id, $force);
 
         if (!$deleted) {
             return response()->error('Grade not found', null, 404);
@@ -133,6 +138,26 @@ class GradeController extends Controller
         return response()->success(
             null,
             'Grade deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted grade.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->gradeService->restoreGrade($id);
+
+        if (!$restored) {
+            return response()->error('Grade not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new GradeResource($restored),
+            'Grade restored successfully'
         );
     }
 

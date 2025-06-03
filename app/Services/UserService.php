@@ -41,9 +41,10 @@ class UserService
      * @param int|null $perPage
      * @param array $relations
      * @param string|null $userType
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllUsers(?int $perPage = null, array $relations = [], ?string $userType = null): Collection|LengthAwarePaginator
+    public function getAllUsers(?int $perPage = null, array $relations = [], ?string $userType = null, ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
         $query = User::query();
 
@@ -53,6 +54,12 @@ class UserService
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -184,14 +191,15 @@ class UserService
     }
 
     /**
-     * Delete a user and their associated uploads.
+     * Delete or force delete a user and their associated uploads.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteUser(int $id): bool
+    public function deleteUser(int $id, bool $force = false): bool
     {
-        $user = User::query()->find($id);
+        $user = User::withTrashed()->find($id);
 
         if (!$user) {
             return false;
@@ -208,7 +216,26 @@ class UserService
             $this->uploadService->deleteUpload($upload);
         }
 
-        return $user->delete();
+        return $force ? $user->forceDelete() : $user->delete();
+    }
+
+    /**
+     * Restore a delete user.
+     *
+     * @param int $id
+     * @return User|null
+     */
+    public function restoreUser(int $id): ?User
+    {
+        $user = User::onlyTrashed()->find($id);
+
+        if (!$user) {
+            return null;
+        }
+
+        $user->restore();
+
+        return $user->fresh();
     }
 
     /**
@@ -229,7 +256,7 @@ class UserService
             throw new Exception('User not found');
         }
 
-        return $this->uploadService->getUserUploads($user, $perPage, $fileType, $disk);
+        return $this->uploadService->getUserUploads('', $user, $perPage, $fileType, $disk);
     }
 
     /**

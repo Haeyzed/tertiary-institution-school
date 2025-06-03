@@ -12,16 +12,28 @@ class CourseService
     /**
      * Get all courses with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllCourses(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllCourses(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Course::query();
+        $query = Course::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%")
+                    ->orwhereLike('code', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -77,20 +89,40 @@ class CourseService
     }
 
     /**
-     * Delete a course.
+     * Delete or force delete a course.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteCourse(int $id): bool
+    public function deleteCourse(int $id, bool $force = false): bool
     {
-        $course = Course::query()->find($id);
+        $course = Course::withTrashed()->find($id);
 
         if (!$course) {
             return false;
         }
 
-        return $course->delete();
+        return $force ? $course->forceDelete() : $course->delete();
+    }
+
+    /**
+     * Restore a delete course.
+     *
+     * @param int $id
+     * @return Course|null
+     */
+    public function restoreCourse(int $id): ?Course
+    {
+        $course = Course::onlyTrashed()->find($id);
+
+        if (!$course) {
+            return null;
+        }
+
+        $course->restore();
+
+        return $course->fresh();
     }
 
     /**

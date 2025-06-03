@@ -36,14 +36,16 @@ class ProgramController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $perPage = $request->query('per_page', 15);
+        $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $programs = $this->programService->getAllPrograms($perPage, $relations);
+        $programs = $this->programService->getAllPrograms($term, $perPage, $relations, $deleted);
 
         return response()->success(
             ProgramResource::collection($programs),
@@ -119,12 +121,15 @@ class ProgramController extends Controller
     /**
      * Remove the specified program from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->programService->deleteProgram($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->programService->deleteProgram($id, $force);
 
         if (!$deleted) {
             return response()->error('Program not found', null, 404);
@@ -133,6 +138,26 @@ class ProgramController extends Controller
         return response()->success(
             null,
             'Program deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted program.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->programService->restoreProgram($id);
+
+        if (!$restored) {
+            return response()->error('Program not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new ProgramResource($restored),
+            'Program restored successfully'
         );
     }
 

@@ -24,6 +24,7 @@ return new class extends Migration
             $table->string('venue')->nullable();
             $table->string('status')->default(ExamStatusEnum::PENDING);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

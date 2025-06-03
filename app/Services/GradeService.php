@@ -11,16 +11,27 @@ class GradeService
     /**
      * Get all grades with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllGrades(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllGrades(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Grade::query();
+        $query = Grade::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('grade', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +87,40 @@ class GradeService
     }
 
     /**
-     * Delete a grade.
+     * Delete or force delete a grade.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteGrade(int $id): bool
+    public function deleteGrade(int $id, bool $force = false): bool
     {
-        $grade = Grade::query()->find($id);
+        $grade = Grade::withTrashed()->find($id);
 
         if (!$grade) {
             return false;
         }
 
-        return $grade->delete();
+        return $force ? $grade->forceDelete() : $grade->delete();
+    }
+
+    /**
+     * Restore a delete grade.
+     *
+     * @param int $id
+     * @return Grade|null
+     */
+    public function restoreGrade(int $id): ?Grade
+    {
+        $grade = Grade::onlyTrashed()->find($id);
+
+        if (!$grade) {
+            return null;
+        }
+
+        $grade->restore();
+
+        return $grade->fresh();
     }
 
     /**

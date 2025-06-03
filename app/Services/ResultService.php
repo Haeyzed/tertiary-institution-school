@@ -12,16 +12,27 @@ class ResultService
     /**
      * Get all results with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllResults(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllResults(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Result::query();
+        $query = Result::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('remarks', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -106,20 +117,40 @@ class ResultService
     }
 
     /**
-     * Delete a result.
+     * Delete or force delete a result.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteResult(int $id): bool
+    public function deleteResult(int $id, bool $force = false): bool
     {
-        $result = Result::query()->find($id);
+        $result = Result::withTrashed()->find($id);
 
         if (!$result) {
             return false;
         }
 
-        return $result->delete();
+        return $force ? $result->forceDelete() : $result->delete();
+    }
+
+    /**
+     * Restore a delete result.
+     *
+     * @param int $id
+     * @return Result|null
+     */
+    public function restoreResult(int $id): ?Result
+    {
+        $result = Result::onlyTrashed()->find($id);
+
+        if (!$result) {
+            return null;
+        }
+
+        $result->restore();
+
+        return $result->fresh();
     }
 
     /**

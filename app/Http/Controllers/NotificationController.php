@@ -38,12 +38,14 @@ class NotificationController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $notifications = $this->notificationService->getAllNotifications($perPage, $relations);
+        $notifications = $this->notificationService->getAllNotifications($term, $perPage, $relations, $deleted);
 
         return response()->success(
             NotificationResource::collection($notifications),
@@ -119,12 +121,15 @@ class NotificationController extends Controller
     /**
      * Remove the specified notification from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->notificationService->deleteNotification($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->notificationService->deleteNotification($id, $force);
 
         if (!$deleted) {
             return response()->error('Notification not found', null, 404);
@@ -133,6 +138,26 @@ class NotificationController extends Controller
         return response()->success(
             null,
             'Notification deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted notification.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->notificationService->restoreNotification($id);
+
+        if (!$restored) {
+            return response()->error('Notification not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new NotificationResource($restored),
+            'Notification restored successfully'
         );
     }
 

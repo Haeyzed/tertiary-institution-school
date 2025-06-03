@@ -11,16 +11,28 @@ class FacultyService
     /**
      * Get all faculties with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllFaculties(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllFaculties(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Faculty::query();
+        $query = Faculty::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%")
+                    ->orwhereLike('code', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,35 +88,39 @@ class FacultyService
     }
 
     /**
-     * Delete a faculty.
+     * Delete or force delete a faculty.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteFaculty(int $id): bool
+    public function deleteFaculty(int $id, bool $force = false): bool
     {
-        $faculty = Faculty::query()->find($id);
+        $faculty = Faculty::withTrashed()->find($id);
 
         if (!$faculty) {
             return false;
         }
 
-        return $faculty->delete();
+        return $force ? $faculty->forceDelete() : $faculty->delete();
     }
 
     /**
-     * Search faculties by name or code.
+     * Restore a delete faculty.
      *
-     * @param string $term
-     * @param int|null $perPage
-     * @return Collection|LengthAwarePaginator
+     * @param int $id
+     * @return Faculty|null
      */
-    public function searchFaculties(string $term, ?int $perPage = null): Collection|LengthAwarePaginator
+    public function restoreFaculty(int $id): ?Faculty
     {
-        $query = Faculty::query()
-            ->whereLike('name', "%$term%")
-            ->orWhereLike('code', "%$term%");
+        $faculty = Faculty::onlyTrashed()->find($id);
 
-        return $perPage ? $query->paginate($perPage) : $query->get();
+        if (!$faculty) {
+            return null;
+        }
+
+        $faculty->restore();
+
+        return $faculty->fresh();
     }
 }

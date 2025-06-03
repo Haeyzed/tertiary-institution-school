@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\FileTypeEnum;
 use App\Models\Upload;
 use App\Models\User;
+use DateTimeInterface;
 use Exception;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -13,6 +14,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\Interfaces\ImageInterface;
 use Log;
 
 class UploadService
@@ -73,8 +75,8 @@ class UploadService
         // Create upload record
         $upload = $this->createUploadRecord($file, $filePath, $fileInfo, $config, $user);
 
-        // Process image if needed
-        if ($upload->isImage() && $config['generate_thumbnails']) {
+        // Process image if needed (only for local storage or if thumbnails are explicitly enabled)
+        if ($upload->isImage() && $config['generate_thumbnails'] && $this->shouldGenerateThumbnails($config['disk'])) {
             $this->processImage($upload, $config);
         }
 
@@ -120,7 +122,7 @@ class UploadService
             'disk' => config('filesystems.default'),
             'folder' => 'uploads/profiles',
             'is_public' => true,
-            'generate_thumbnails' => false,
+            'generate_thumbnails' => false, // Disable thumbnails for profile photos to avoid S3 issues
             'max_file_size' => 5242880, // 5MB
             'allowed_extensions' => ['jpg', 'jpeg', 'png', 'webp'],
             'image_quality' => 90,
@@ -168,15 +170,18 @@ class UploadService
     /**
      * Get user uploads with pagination
      *
+     * @param string $term
      * @param User $user
      * @param int|null $perPage
      * @param string|null $fileType
      * @param string|null $disk
      * @return Collection|LengthAwarePaginator
      */
-    public function getUserUploads(User $user, ?int $perPage = null, ?string $fileType = null, ?string $disk = null): Collection|LengthAwarePaginator
+    public function getUserUploads(string $term, User $user, ?int $perPage = null, ?string $fileType = null, ?string $disk = null): Collection|LengthAwarePaginator
     {
-        $query = Upload::byUser($user->id)
+        $query = Upload::query()->where(function ($q) use ($term) {
+                $q->whereLike('original_name', "%$term%");
+            })->byUser($user->id)
             ->with('user')
             ->latest('uploaded_at');
 
@@ -273,22 +278,12 @@ class UploadService
      * Generate a temporary URL for private files
      *
      * @param Upload $upload
-     * @param \DateTimeInterface $expiration
+     * @param DateTimeInterface $expiration
      * @return string|null
      */
-    public function getTemporaryUrl(Upload $upload, \DateTimeInterface $expiration): ?string
+    public function getTemporaryUrl(Upload $upload, DateTimeInterface $expiration): ?string
     {
-        try {
-            $storage = Storage::disk($upload->disk);
-
-            if (method_exists($storage, 'temporaryUrl')) {
-                return $storage->temporaryUrl($upload->file_path, $expiration);
-            }
-
-            return null;
-        } catch (Exception $e) {
-            return null;
-        }
+        return $upload->getTemporaryUrl($expiration);
     }
 
     /**
@@ -300,17 +295,7 @@ class UploadService
      */
     public function getThumbnailUrl(Upload $upload, string $size = 'thumb'): ?string
     {
-        if (!$upload->isImage() || !isset($upload->metadata['thumbnails'][$size])) {
-            return null;
-        }
-
-        $thumbnailPath = $upload->metadata['thumbnails'][$size];
-
-        try {
-            return Storage::disk($upload->disk)->url($thumbnailPath);
-        } catch (Exception $e) {
-            return null;
-        }
+        return $upload->getThumbnailUrl($size);
     }
 
     /**
@@ -364,6 +349,21 @@ class UploadService
         $stats['human_total_size'] = $this->formatBytes($stats['total_size']);
 
         return $stats;
+    }
+
+    /**
+     * Check if thumbnails should be generated for the given disk
+     *
+     * @param string $disk
+     * @return bool
+     */
+    protected function shouldGenerateThumbnails(string $disk): bool
+    {
+        // For cloud storage like S3, we might want to skip thumbnail generation
+        // to avoid downloading and re-uploading files
+        $cloudDisks = ['s3', 'spaces', 'gcs', 'azure'];
+
+        return !in_array($disk, $cloudDisks);
     }
 
     /**
@@ -449,11 +449,13 @@ class UploadService
             $config['disk']
         );
 
-        // Set file visibility
-        if ($config['is_public']) {
-            $disk->setVisibility($filePath, 'public');
-        } else {
-            $disk->setVisibility($filePath, 'private');
+        // Set file visibility for cloud storage
+        if ($config['is_public'] && in_array($config['disk'], ['s3', 'spaces', 'gcs'])) {
+            try {
+                $disk->setVisibility($filePath, 'public');
+            } catch (Exception $e) {
+                Log::warning('Failed to set file visibility: ' . $e->getMessage());
+            }
         }
 
         return $filePath;
@@ -511,6 +513,12 @@ class UploadService
     protected function processImage(Upload $upload, array $config): void
     {
         try {
+            // Skip image processing for cloud storage to avoid complexity
+            if (in_array($upload->disk, ['s3', 'spaces', 'gcs'])) {
+                Log::info('Skipping image processing for cloud storage: ' . $upload->disk);
+                return;
+            }
+
             $filePath = Storage::disk($upload->disk)->path($upload->file_path);
 
             // Read image using new Intervention Image 3.x API
@@ -544,9 +552,9 @@ class UploadService
      * Generate thumbnails for images
      *
      * @param Upload $upload
-     * @param \Intervention\Image\Interfaces\ImageInterface $image
+     * @param ImageInterface $image
      */
-    protected function generateThumbnails(Upload $upload, $image): void
+    protected function generateThumbnails(Upload $upload, ImageInterface $image): void
     {
         $thumbnailSizes = [
             'thumb' => [150, 150],

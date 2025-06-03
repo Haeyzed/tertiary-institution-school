@@ -38,12 +38,14 @@ class CourseController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $courses = $this->courseService->getAllCourses($perPage, $relations);
+        $courses = $this->courseService->getAllCourses($term, $perPage, $relations, $deleted);
 
         return response()->success(
             CourseResource::collection($courses),
@@ -119,12 +121,15 @@ class CourseController extends Controller
     /**
      * Remove the specified course from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->courseService->deleteCourse($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->courseService->deleteCourse($id, $force);
 
         if (!$deleted) {
             return response()->error('Course not found', null, 404);
@@ -133,6 +138,26 @@ class CourseController extends Controller
         return response()->success(
             null,
             'Course deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted course.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->courseService->restoreCourse($id);
+
+        if (!$restored) {
+            return response()->error('Course not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new CourseResource($restored),
+            'Course restored successfully'
         );
     }
 

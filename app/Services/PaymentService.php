@@ -14,16 +14,27 @@ class PaymentService
     /**
      * Get all payments with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllPayments(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllPayments(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Payment::query();
+        $query = Payment::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('transaction_id', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -118,20 +129,40 @@ class PaymentService
     }
 
     /**
-     * Delete a payment.
+     * Delete or force delete a payment.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deletePayment(int $id): bool
+    public function deletePayment(int $id, bool $force = false): bool
     {
-        $payment = Payment::query()->find($id);
+        $payment = Payment::withTrashed()->find($id);
 
         if (!$payment) {
             return false;
         }
 
-        return $payment->delete();
+        return $force ? $payment->forceDelete() : $payment->delete();
+    }
+
+    /**
+     * Restore a delete payment.
+     *
+     * @param int $id
+     * @return Payment|null
+     */
+    public function restorePayment(int $id): ?Payment
+    {
+        $payment = Payment::onlyTrashed()->find($id);
+
+        if (!$payment) {
+            return null;
+        }
+
+        $payment->restore();
+
+        return $payment->fresh();
     }
 
     /**

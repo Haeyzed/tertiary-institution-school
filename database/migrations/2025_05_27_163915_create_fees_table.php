@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignId('semester_id')->nullable()->constrained()->onDelete('set null');
             $table->string('description')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

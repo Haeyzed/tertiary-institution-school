@@ -13,16 +13,27 @@ class AcademicSessionService
     /**
      * Get all academic sessions with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllAcademicSessions(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllAcademicSessions(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = AcademicSession::query();
+        $query = AcademicSession::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -97,22 +108,45 @@ class AcademicSessionService
         });
     }
 
-
     /**
-     * Delete an academic session.
+     * Delete or force delete an academic session.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteAcademicSession(int $id): bool
+    public function deleteAcademicSession(int $id, bool $force = false): bool
     {
-        $academicSession = AcademicSession::query()->find($id);
+        $academicSession = AcademicSession::withTrashed()->find($id);
 
         if (!$academicSession) {
             return false;
         }
 
-        return $academicSession->delete();
+        if ($academicSession->is_current) {
+            return false;
+        }
+
+        return $force ? $academicSession->forceDelete() : $academicSession->delete();
+    }
+
+    /**
+     * Restore a delete academic session.
+     *
+     * @param int $id
+     * @return AcademicSession|null
+     */
+    public function restoreAcademicSession(int $id): ?AcademicSession
+    {
+        $academicSession = AcademicSession::onlyTrashed()->find($id);
+
+        if (!$academicSession) {
+            return null;
+        }
+
+        $academicSession->restore();
+
+        return $academicSession->fresh();
     }
 
     /**

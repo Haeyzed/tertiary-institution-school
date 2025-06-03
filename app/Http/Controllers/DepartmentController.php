@@ -38,12 +38,14 @@ class DepartmentController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $departments = $this->departmentService->getAllDepartments($perPage, $relations);
+        $departments = $this->departmentService->getAllDepartments($term, $perPage, $relations, $deleted);
 
         return response()->success(
             DepartmentResource::collection($departments),
@@ -119,12 +121,15 @@ class DepartmentController extends Controller
     /**
      * Remove the specified department from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->departmentService->deleteDepartment($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->departmentService->deleteDepartment($id, $force);
 
         if (!$deleted) {
             return response()->error('Department not found', null, 404);
@@ -133,6 +138,26 @@ class DepartmentController extends Controller
         return response()->success(
             null,
             'Department deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted department.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->departmentService->restoreDepartment($id);
+
+        if (!$restored) {
+            return response()->error('Department not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new DepartmentResource($restored),
+            'Department restored successfully'
         );
     }
 
@@ -151,27 +176,6 @@ class DepartmentController extends Controller
         return response()->success(
             DepartmentResource::collection($departments),
             'Departments retrieved successfully'
-        );
-    }
-
-    /**
-     * Search departments by name or code.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function search(Request $request): JsonResponse
-    {
-        $request->validate([
-            'term' => 'required|string|min:2',
-        ]);
-
-        $perPage = $request->query('per_page', config('app.per_page'));
-        $departments = $this->departmentService->searchDepartments($request->term, $perPage);
-
-        return response()->success(
-            DepartmentResource::collection($departments),
-            'Search results retrieved successfully'
         );
     }
 }

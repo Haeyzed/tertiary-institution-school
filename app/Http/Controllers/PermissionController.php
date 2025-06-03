@@ -45,12 +45,14 @@ class PermissionController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', ['roles']);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $permissions = $this->permissionService->getAllPermissions($perPage, $relations);
+        $permissions = $this->permissionService->getAllPermissions($term, $perPage, $relations, $deleted);
 
         return response()->success(
             PermissionResource::collection($permissions),
@@ -115,12 +117,15 @@ class PermissionController extends Controller
     /**
      * Remove the specified permission from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $result = $this->permissionService->deletePermission($id);
+        $force = $request->boolean('force');
+
+        $result = $this->permissionService->deletePermission($id, $force);
 
         if (!$result) {
             return response()->error('Permission not found', null, 404);

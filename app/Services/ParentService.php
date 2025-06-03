@@ -16,16 +16,32 @@ class ParentService
     /**
      * Get all parents with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllParents(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllParents(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Parents::query();
+        $query = Parents::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('occupation', "%$term%")
+                    ->orWhereLike('relationship', "%$term%")
+                    ->whereHas('user', function ($q) use ($term) {
+                        $q->whereLike('name', "%$term%")
+                            ->orwhereLike('email', "%$term%");
+                    });
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -126,41 +142,49 @@ class ParentService
     }
 
     /**
-     * Delete a parent.
+     * Delete or force delete a parent.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      * @throws Exception|Throwable
      */
-    public function deleteParent(int $id): bool
+    public function deleteParent(int $id, bool $force = false): bool
     {
-        $parent = Parents::query()->find($id);
+        $parent = Parents::withTrashed()->find($id);
 
         if (!$parent) {
             return false;
         }
 
-        return DB::transaction(function () use ($parent) {
-            $parent->delete();
-            $parent->user->delete();
+        return DB::transaction(function () use ($parent, $force) {
+            if ($force) {
+                $parent->forceDelete();
+                $parent->user->forceDelete();
+            } else {
+                $parent->delete();
+                $parent->user->delete();
+            }
             return true;
         });
     }
 
     /**
-     * Search parents by name or email.
+     * Restore a delete parent.
      *
-     * @param string $term
-     * @param int|null $perPage
-     * @return Collection|LengthAwarePaginator
+     * @param int $id
+     * @return Parents|null
      */
-    public function searchParents(string $term, ?int $perPage = null): Collection|LengthAwarePaginator
+    public function restoreParent(int $id): ?Parents
     {
-        $query = Parents::query()->whereHas('user', function ($query) use ($term) {
-            $query->whereLike('name', "%$term%")
-                ->orWhereLike('email', "%$term%");
-        });
+        $parent = Parents::onlyTrashed()->find($id);
 
-        return $perPage ? $query->paginate($perPage) : $query->get();
+        if (!$parent) {
+            return null;
+        }
+
+        $parent->restore();
+
+        return $parent->fresh();
     }
 }

@@ -58,13 +58,15 @@ class UserController extends Controller
 
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
         $userType = $request->query('user_type');
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $users = $this->userService->getAllUsers($perPage, $relations, $userType);
+        $users = $this->userService->getAllUsers($term, $perPage, $relations, $userType, $deleted);
 
         if ($perPage) {
             return response()->paginated(
@@ -199,16 +201,19 @@ class UserController extends Controller
     /**
      * Remove the specified user from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $force = $request->boolean('force');
+
         if (!$this->checkPermission('delete-user')) {
             return response()->error('Unauthorized', null, 403);
         }
 
-        $deleted = $this->userService->deleteUser($id);
+        $deleted = $this->userService->deleteUser($id, $force);
 
         if (!$deleted) {
             return response()->error('User not found', null, 404);
@@ -221,41 +226,22 @@ class UserController extends Controller
     }
 
     /**
-     * Search for users by name or email.
+     * Restore a soft-deleted user.
      *
-     * @param Request $request
+     * @param int $id
      * @return JsonResponse
      */
-    public function search(Request $request): JsonResponse
+    public function restore(int $id): JsonResponse
     {
-        if (!$this->checkPermission('view-user')) {
-            return response()->error('Unauthorized', null, 403);
-        }
+        $restored = $this->userService->restoreUser($id);
 
-        $request->validate([
-            'term' => 'required|string|min:2',
-        ]);
-
-        $perPage = $request->query('per_page', config('app.per_page'));
-        $relations = $request->input('with', []);
-        $userType = $request->query('user_type');
-
-        if (is_string($relations)) {
-            $relations = explode(',', $relations);
-        }
-
-        $users = $this->userService->searchUsers($request->term, $perPage, $relations, $userType);
-
-        if ($perPage) {
-            return response()->paginated(
-                UserResource::collection($users),
-                'Search results retrieved successfully'
-            );
+        if (!$restored) {
+            return response()->error('User not found or not deleted', null, 404);
         }
 
         return response()->success(
-            UserResource::collection($users),
-            'Search results retrieved successfully'
+            new UserResource($restored),
+            'User restored successfully'
         );
     }
 

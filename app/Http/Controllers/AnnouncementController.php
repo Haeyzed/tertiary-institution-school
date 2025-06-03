@@ -38,12 +38,14 @@ class AnnouncementController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $announcements = $this->announcementService->getAllAnnouncements($perPage, $relations);
+        $announcements = $this->announcementService->getAllAnnouncements($term, $perPage, $relations, $deleted);
 
         return response()->success(
             AnnouncementResource::collection($announcements),
@@ -119,12 +121,15 @@ class AnnouncementController extends Controller
     /**
      * Remove the specified announcement from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->announcementService->deleteAnnouncement($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->announcementService->deleteAnnouncement($id, $force);
 
         if (!$deleted) {
             return response()->error('Announcement not found', null, 404);
@@ -133,6 +138,26 @@ class AnnouncementController extends Controller
         return response()->success(
             null,
             'Announcement deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted announcement.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->announcementService->restoreAnnouncement($id);
+
+        if (!$restored) {
+            return response()->error('Announcement not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new AnnouncementResource($restored),
+            'Announcement restored successfully'
         );
     }
 

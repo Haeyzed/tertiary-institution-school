@@ -11,16 +11,28 @@ class AnnouncementService
     /**
      * Get all announcements with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllAnnouncements(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllAnnouncements(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Announcement::query();
+        $query = Announcement::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('title', "%$term%")
+                    ->orwhereLike('message', "%$term%");
+            });;
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +88,40 @@ class AnnouncementService
     }
 
     /**
-     * Delete an announcement.
+     * Delete or force delete an announcement.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteAnnouncement(int $id): bool
+    public function deleteAnnouncement(int $id, bool $force = false): bool
     {
-        $announcement = Announcement::query()->find($id);
+        $announcement = Announcement::withTrashed()->find($id);
 
         if (!$announcement) {
             return false;
         }
 
-        return $announcement->delete();
+        return $force ? $announcement->forceDelete() : $announcement->delete();
+    }
+
+    /**
+     * Restore a delete announcement.
+     *
+     * @param int $id
+     * @return Announcement|null
+     */
+    public function restoreAnnouncement(int $id): ?Announcement
+    {
+        $announcement = Announcement::onlyTrashed()->find($id);
+
+        if (!$announcement) {
+            return null;
+        }
+
+        $announcement->restore();
+
+        return $announcement->fresh();
     }
 
     /**

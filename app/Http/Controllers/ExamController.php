@@ -38,12 +38,14 @@ class ExamController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $exams = $this->examService->getAllExams($perPage, $relations);
+        $exams = $this->examService->getAllExams($term, $perPage, $relations, $deleted);
 
         return response()->success(
             ExamResource::collection($exams),
@@ -119,12 +121,15 @@ class ExamController extends Controller
     /**
      * Remove the specified exam from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->examService->deleteExam($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->examService->deleteExam($id, $force);
 
         if (!$deleted) {
             return response()->error('Exam not found', null, 404);
@@ -133,6 +138,26 @@ class ExamController extends Controller
         return response()->success(
             null,
             'Exam deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted exam.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->examService->restoreExam($id);
+
+        if (!$restored) {
+            return response()->error('Exam not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new ExamResource($restored),
+            'Exam restored successfully'
         );
     }
 

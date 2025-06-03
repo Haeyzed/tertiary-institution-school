@@ -12,16 +12,28 @@ class AssignmentService
     /**
      * Get all assignments with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllAssignments(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllAssignments(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Assignment::query();
+        $query = Assignment::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('title', "%$term%")
+                    ->orwhereLike('description', "%$term%");
+            });;
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -77,20 +89,40 @@ class AssignmentService
     }
 
     /**
-     * Delete an assignment.
+     * Delete or force delete an assignment.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteAssignment(int $id): bool
+    public function deleteAssignment(int $id, bool $force = false): bool
     {
-        $assignment = Assignment::query()->find($id);
+        $assignment = Assignment::withTrashed()->find($id);
 
         if (!$assignment) {
             return false;
         }
 
-        return $assignment->delete();
+        return $force ? $assignment->forceDelete() : $assignment->delete();
+    }
+
+    /**
+     * Restore a delete assignment.
+     *
+     * @param int $id
+     * @return Assignment|null
+     */
+    public function restoreAssignment(int $id): ?Assignment
+    {
+        $assignment = Assignment::onlyTrashed()->find($id);
+
+        if (!$assignment) {
+            return null;
+        }
+
+        $assignment->restore();
+
+        return $assignment->fresh();
     }
 
     /**

@@ -84,14 +84,9 @@ class UserResource extends JsonResource
                     ->first();
 
                 if ($upload) {
-                    $uploadService = app(UploadService::class);
                     return [
                         'original' => $upload->public_url,
-                        'thumbnails' => [
-                            'thumb' => $uploadService->getThumbnailUrl($upload, 'thumb'),
-                            'small' => $uploadService->getThumbnailUrl($upload, 'small'),
-                            'medium' => $uploadService->getThumbnailUrl($upload, 'medium'),
-                        ],
+                        'thumbnails' => $upload->getThumbnailUrls(),
                     ];
                 }
                 return null;

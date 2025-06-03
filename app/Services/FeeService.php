@@ -11,16 +11,27 @@ class FeeService
     /**
      * Get all fees with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllFees(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllFees(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Fee::query();
+        $query = Fee::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +87,40 @@ class FeeService
     }
 
     /**
-     * Delete a fee.
+     * Delete or force delete a fee.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteFee(int $id): bool
+    public function deleteFee(int $id, bool $force = false): bool
     {
-        $fee = Fee::query()->find($id);
+        $fee = Fee::withTrashed()->find($id);
 
         if (!$fee) {
             return false;
         }
 
-        return $fee->delete();
+        return $force ? $fee->forceDelete() : $fee->delete();
+    }
+
+    /**
+     * Restore a delete fee.
+     *
+     * @param int $id
+     * @return Fee|null
+     */
+    public function restoreFee(int $id): ?Fee
+    {
+        $fee = Fee::onlyTrashed()->find($id);
+
+        if (!$fee) {
+            return null;
+        }
+
+        $fee->restore();
+
+        return $fee->fresh();
     }
 
     /**

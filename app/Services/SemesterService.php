@@ -11,16 +11,27 @@ class SemesterService
     /**
      * Get all semesters with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllSemesters(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllSemesters(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Semester::query();
+        $query = Semester::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +87,40 @@ class SemesterService
     }
 
     /**
-     * Delete a semester.
+     * Delete or force delete a semester.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteSemester(int $id): bool
+    public function deleteSemester(int $id, bool $force = false): bool
     {
-        $semester = Semester::query()->find($id);
+        $semester = Semester::withTrashed()->find($id);
 
         if (!$semester) {
             return false;
         }
 
-        return $semester->delete();
+        return $force ? $semester->forceDelete() : $semester->delete();
+    }
+
+    /**
+     * Restore a delete semester.
+     *
+     * @param int $id
+     * @return Semester|null
+     */
+    public function restoreSemester(int $id): ?Semester
+    {
+        $semester = Semester::onlyTrashed()->find($id);
+
+        if (!$semester) {
+            return null;
+        }
+
+        $semester->restore();
+
+        return $semester->fresh();
     }
 
     /**

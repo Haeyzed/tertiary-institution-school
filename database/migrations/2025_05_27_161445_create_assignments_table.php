@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('total_marks', 5, 2);
             $table->string('attachment')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

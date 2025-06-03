@@ -40,12 +40,14 @@ class AssignmentController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $assignments = $this->assignmentService->getAllAssignments($perPage, $relations);
+        $assignments = $this->assignmentService->getAllAssignments($term, $perPage, $relations, $deleted);
 
         return response()->success(
             AssignmentResource::collection($assignments),
@@ -121,12 +123,15 @@ class AssignmentController extends Controller
     /**
      * Remove the specified assignment from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->assignmentService->deleteAssignment($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->assignmentService->deleteAssignment($id, $force);
 
         if (!$deleted) {
             return response()->error('Assignment not found', null, 404);
@@ -135,6 +140,26 @@ class AssignmentController extends Controller
         return response()->success(
             null,
             'Assignment deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted assignment.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->assignmentService->restoreAssignment($id);
+
+        if (!$restored) {
+            return response()->error('Assignment not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new AssignmentResource($restored),
+            'Assignment restored successfully'
         );
     }
 

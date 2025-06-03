@@ -38,12 +38,14 @@ class ResultController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $results = $this->resultService->getAllResults($perPage, $relations);
+        $results = $this->resultService->getAllResults($term, $perPage, $relations, $deleted);
 
         return response()->success(
             ResultResource::collection($results),
@@ -119,12 +121,15 @@ class ResultController extends Controller
     /**
      * Remove the specified result from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->resultService->deleteResult($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->resultService->deleteResult($id, $force);
 
         if (!$deleted) {
             return response()->error('Result not found', null, 404);
@@ -133,6 +138,26 @@ class ResultController extends Controller
         return response()->success(
             null,
             'Result deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted result.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->resultService->restoreResult($id);
+
+        if (!$restored) {
+            return response()->error('Result not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new ResultResource($restored),
+            'Result restored successfully'
         );
     }
 

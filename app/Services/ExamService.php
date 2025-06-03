@@ -11,16 +11,27 @@ class ExamService
     /**
      * Get all exams with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllExams(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllExams(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Exam::query();
+        $query = Exam::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('title', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +87,40 @@ class ExamService
     }
 
     /**
-     * Delete an exam.
+     * Delete or force delete an exam.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteExam(int $id): bool
+    public function deleteExam(int $id, bool $force = false): bool
     {
-        $exam = Exam::query()->find($id);
+        $exam = Exam::withTrashed()->find($id);
 
         if (!$exam) {
             return false;
         }
 
-        return $exam->delete();
+        return $force ? $exam->forceDelete() : $exam->delete();
+    }
+
+    /**
+     * Restore a delete exam.
+     *
+     * @param int $id
+     * @return Exam|null
+     */
+    public function restoreExam(int $id): ?Exam
+    {
+        $exam = Exam::onlyTrashed()->find($id);
+
+        if (!$exam) {
+            return null;
+        }
+
+        $exam->restore();
+
+        return $exam->fresh();
     }
 
     /**

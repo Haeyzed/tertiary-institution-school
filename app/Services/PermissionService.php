@@ -18,13 +18,17 @@ class PermissionService
     /**
      * Get all permissions with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllPermissions(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllPermissions(string $term, ?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
     {
-        $query = Permission::query();
+        $query = Permission::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);

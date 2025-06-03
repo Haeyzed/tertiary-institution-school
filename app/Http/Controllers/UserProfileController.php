@@ -64,7 +64,7 @@ class UserProfileController extends Controller
 
             // Delete old profile photo if exists
             if ($user->photo) {
-                $oldUpload = Upload::where('user_id', $user->id)
+                $oldUpload = Upload::query()->where('user_id', $user->id)
                     ->where('file_path', $user->photo)
                     ->first();
 
@@ -111,7 +111,7 @@ class UserProfileController extends Controller
             }
 
             // Find and delete the upload record
-            $upload = Upload::where('user_id', $user->id)
+            $upload = Upload::query()->where('user_id', $user->id)
                 ->where('file_path', $user->photo)
                 ->first();
 
@@ -148,7 +148,7 @@ class UserProfileController extends Controller
 
         // Add photo URLs if user has a profile photo
         if ($user->photo) {
-            $upload = Upload::where('user_id', $user->id)
+            $upload = Upload::query()->where('user_id', $user->id)
                 ->where('file_path', $user->photo)
                 ->first();
 

@@ -40,12 +40,14 @@ class StudentController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $students = $this->studentService->getAllStudents($perPage, $relations);
+        $students = $this->studentService->getAllStudents($term, $perPage, $relations, $deleted);
 
         return response()->success(
             StudentResource::collection($students),
@@ -139,14 +141,17 @@ class StudentController extends Controller
     /**
      * Remove the specified student from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      * @throws Throwable
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $force = $request->boolean('force');
+
         try {
-            $deleted = $this->studentService->deleteStudent($id);
+            $deleted = $this->studentService->deleteStudent($id, $force);
 
             if (!$deleted) {
                 return response()->error('Student not found', null, 404);
@@ -163,6 +168,26 @@ class StudentController extends Controller
                 500
             );
         }
+    }
+
+    /**
+     * Restore a soft-deleted student.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->studentService->restoreStudent($id);
+
+        if (!$restored) {
+            return response()->error('Student not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new StudentResource($restored),
+            'Student restored successfully'
+        );
     }
 
     /**

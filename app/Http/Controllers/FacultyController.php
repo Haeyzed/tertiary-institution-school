@@ -38,12 +38,14 @@ class FacultyController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $faculties = $this->facultyService->getAllFaculties($perPage, $relations);
+        $faculties = $this->facultyService->getAllFaculties($term, $perPage, $relations, $deleted);
 
         return response()->success(
             FacultyResource::collection($faculties),
@@ -119,12 +121,15 @@ class FacultyController extends Controller
     /**
      * Remove the specified faculty from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->facultyService->deleteFaculty($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->facultyService->deleteFaculty($id, $force);
 
         if (!$deleted) {
             return response()->error('Faculty not found', null, 404);
@@ -137,23 +142,22 @@ class FacultyController extends Controller
     }
 
     /**
-     * Search faculties by name or code.
+     * Restore a soft-deleted faculty.
      *
-     * @param Request $request
+     * @param int $id
      * @return JsonResponse
      */
-    public function search(Request $request): JsonResponse
+    public function restore(int $id): JsonResponse
     {
-        $request->validate([
-            'term' => 'required|string|min:2',
-        ]);
+        $restored = $this->facultyService->restoreFaculty($id);
 
-        $perPage = $request->query('per_page', config('app.per_page'));
-        $faculties = $this->facultyService->searchFaculties($request->term, $perPage);
+        if (!$restored) {
+            return response()->error('Faculty not found or not deleted', null, 404);
+        }
 
         return response()->success(
-            FacultyResource::collection($faculties),
-            'Search results retrieved successfully'
+            new FacultyResource($restored),
+            'Faculty restored successfully'
         );
     }
 }

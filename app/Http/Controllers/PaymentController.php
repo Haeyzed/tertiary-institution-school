@@ -38,12 +38,14 @@ class PaymentController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $payments = $this->paymentService->getAllPayments($perPage, $relations);
+        $payments = $this->paymentService->getAllPayments($term, $perPage, $relations, $deleted);
 
         return response()->success(
             PaymentResource::collection($payments),
@@ -119,12 +121,15 @@ class PaymentController extends Controller
     /**
      * Remove the specified payment from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->paymentService->deletePayment($id);
+        $force = $request->boolean('force');
+
+        $deleted = $this->paymentService->deletePayment($id, $force);
 
         if (!$deleted) {
             return response()->error('Payment not found', null, 404);
@@ -133,6 +138,26 @@ class PaymentController extends Controller
         return response()->success(
             null,
             'Payment deleted successfully'
+        );
+    }
+
+    /**
+     * Restore a soft-deleted payment.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->paymentService->restorePayment($id);
+
+        if (!$restored) {
+            return response()->error('Payment not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new PaymentResource($restored),
+            'Payment restored successfully'
         );
     }
 

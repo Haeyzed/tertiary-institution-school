@@ -63,7 +63,7 @@ Route::prefix('v1')->group(function () {
     });
 
     // Protected routes
-    Route::middleware('auth:api')->group(function () {
+//    Route::middleware('auth:api')->group(function () {
 
         // Upload routes
         Route::prefix('uploads')->group(function () {
@@ -129,17 +129,9 @@ Route::prefix('v1')->group(function () {
         Route::get('users/{userId}/permissions/{permissionName}/check', [ACLController::class, 'checkUserHasPermission']);
 
         // User routes
-//        Route::apiResource('users', UserController::class);
-//        Route::get('users/search/{term}', [UserController::class, 'search']);
-
-        // User management routes
+        Route::apiResource('users', UserController::class);
         Route::prefix('users')->group(function () {
-            Route::get('/', [UserController::class, 'index']);
-            Route::post('/', [UserController::class, 'store']);
-            Route::get('/search', [UserController::class, 'search']);
-            Route::get('/{id}', [UserController::class, 'show']);
-            Route::put('/{id}', [UserController::class, 'update']);
-            Route::delete('/{id}', [UserController::class, 'destroy']);
+            Route::put('/{id}/restore', [UserController::class, 'restore']);
 
             // User photo management
             Route::post('/{id}/photo', [UserController::class, 'uploadProfilePhoto']);
@@ -157,12 +149,14 @@ Route::prefix('v1')->group(function () {
 
         // Student routes
         Route::apiResource('students', StudentController::class);
+        Route::put('students/{id}/restore', [UserController::class, 'restore']);
         Route::get('programs/{programId}/students', [StudentController::class, 'getByProgram']);
         Route::post('students/enroll', [StudentController::class, 'enrollInCourse']);
         Route::post('students/unenroll', [StudentController::class, 'unenrollFromCourse']);
 
         // Course routes
         Route::apiResource('courses', CourseController::class);
+        Route::put('courses/{id}/restore', [CourseController::class, 'restore']);
         Route::get('departments/{departmentId}/courses', [CourseController::class, 'getByDepartment']);
         Route::get('semesters/{semesterId}/courses', [CourseController::class, 'getBySemester']);
         Route::post('courses/assign', [CourseController::class, 'assignToSemester']);
@@ -170,6 +164,7 @@ Route::prefix('v1')->group(function () {
 
         // Result routes
         Route::apiResource('results', ResultController::class);
+        Route::put('results/{id}/restore', [ResultController::class, 'restore']);
         Route::get('students/{studentId}/results', [ResultController::class, 'getByStudent']);
         Route::get('courses/{courseId}/results', [ResultController::class, 'getByCourse']);
         Route::get('exams/{examId}/results', [ResultController::class, 'getByExam']);
@@ -179,6 +174,7 @@ Route::prefix('v1')->group(function () {
 
         // Payment routes
         Route::apiResource('payments', PaymentController::class);
+        Route::put('payments/{id}/restore', [PaymentController::class, 'restore']);
         Route::get('students/{studentId}/payments', [PaymentController::class, 'getByStudent']);
         Route::get('fees/{feeId}/payments', [PaymentController::class, 'getByFee']);
         Route::get('students/{studentId}/fee-balance', [PaymentController::class, 'getStudentFeeBalance']);
@@ -186,43 +182,47 @@ Route::prefix('v1')->group(function () {
 
         // Faculty routes
         Route::apiResource('faculties', FacultyController::class);
-        Route::get('faculties/search/{term}', [FacultyController::class, 'search']);
+        Route::put('faculties/{id}/restore', [FacultyController::class, 'restore']);
 
         // Department routes
         Route::apiResource('departments', DepartmentController::class);
+        Route::put('departments/{id}/restore', [DepartmentController::class, 'restore']);
         Route::get('faculties/{facultyId}/departments', [DepartmentController::class, 'getByFaculty']);
-        Route::get('departments/search/{term}', [DepartmentController::class, 'search']);
 
         // Program routes
         Route::apiResource('programs', ProgramController::class);
+        Route::put('programs/{id}/restore', [ProgramController::class, 'restore']);
         Route::get('departments/{departmentId}/programs', [ProgramController::class, 'getByDepartment']);
-        Route::get('programs/search/{term}', [ProgramController::class, 'search']);
 
         // Academic Session routes
         Route::apiResource('academic-sessions', AcademicSessionController::class);
+        Route::put('academic-sessions/{id}/restore', [AcademicSessionController::class, 'restore']);
         Route::get('academic-sessions/current', [AcademicSessionController::class, 'getCurrent']);
         Route::put('academic-sessions/{id}/set-current', [AcademicSessionController::class, 'setCurrent']);
 
         // Semester routes
         Route::apiResource('semesters', SemesterController::class);
+        Route::put('semesters/{id}/restore', [SemesterController::class, 'restore']);
         Route::get('academic-sessions/{academicSessionId}/semesters', [SemesterController::class, 'getByAcademicSession']);
         Route::get('semesters/current', [SemesterController::class, 'getCurrent']);
 
         // Grade routes
         Route::apiResource('grades', GradeController::class);
+        Route::put('grades/{id}/restore', [GradeController::class, 'restore']);
         Route::get('grades/by-score', [GradeController::class, 'getByScore']);
 
         // Staff routes
         Route::apiResource('staff', StaffController::class);
+        Route::put('staff/{id}/restore', [StaffController::class, 'restore']);
         Route::get('departments/{departmentId}/staff', [StaffController::class, 'getByDepartment']);
-        Route::get('staff/search/{term}', [StaffController::class, 'search']);
 
         // Parent routes
         Route::apiResource('parents', ParentController::class);
-        Route::get('parents/search/{term}', [ParentController::class, 'search']);
+        Route::put('parents/{id}/restore', [ParentController::class, 'restore']);
 
         // Exam routes
         Route::apiResource('exams', ExamController::class);
+        Route::put('exams/{id}/restore', [ExamController::class, 'restore']);
         Route::get('courses/{courseId}/exams', [ExamController::class, 'getByCourse']);
         Route::get('semesters/{semesterId}/exams', [ExamController::class, 'getBySemester']);
         Route::get('exams/upcoming', [ExamController::class, 'getUpcoming']);
@@ -230,6 +230,7 @@ Route::prefix('v1')->group(function () {
 
         // Assignment routes
         Route::apiResource('assignments', AssignmentController::class);
+        Route::put('assignments/{id}/restore', [AssignmentController::class, 'restore']);
         Route::get('courses/{courseId}/assignments', [AssignmentController::class, 'getByCourse']);
         Route::get('semesters/{semesterId}/assignments', [AssignmentController::class, 'getBySemester']);
         Route::get('staff/{staffId}/assignments', [AssignmentController::class, 'getByStaff']);
@@ -241,12 +242,14 @@ Route::prefix('v1')->group(function () {
 
         // Fee routes
         Route::apiResource('fees', FeeController::class);
+        Route::put('fees/{id}/restore', [FeeController::class, 'restore']);
         Route::get('programs/{programId}/fees', [FeeController::class, 'getByProgram']);
         Route::get('semesters/{semesterId}/fees', [FeeController::class, 'getBySemester']);
         Route::get('fees/current-semester', [FeeController::class, 'getCurrentSemesterFees']);
 
         // Notification routes
         Route::apiResource('notifications', NotificationController::class);
+        Route::put('notifications/{id}/restore', [NotificationController::class, 'restore']);
         Route::get('users/{userId}/notifications', [NotificationController::class, 'getByUser']);
         Route::get('users/{userId}/notifications/unread', [NotificationController::class, 'getUnreadByUser']);
         Route::put('notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead']);
@@ -254,9 +257,10 @@ Route::prefix('v1')->group(function () {
 
         // Announcement routes
         Route::apiResource('announcements', AnnouncementController::class);
+        Route::put('announcements/{id}/restore', [AnnouncementController::class, 'restore']);
         Route::get('users/{createdBy}/announcements', [AnnouncementController::class, 'getByCreator']);
         Route::get('announcements/recent', [AnnouncementController::class, 'getRecent']);
-    });
+//    });
 });
 
 // Fallback route for undefined API routes

@@ -11,16 +11,28 @@ class DepartmentService
     /**
      * Get all departments with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllDepartments(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllDepartments(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Department::query();
+        $query = Department::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('name', "%$term%")
+                    ->orwhereLike('code', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -76,20 +88,40 @@ class DepartmentService
     }
 
     /**
-     * Delete a department.
+     * Delete or force delete a department.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      */
-    public function deleteDepartment(int $id): bool
+    public function deleteDepartment(int $id, bool $force = false): bool
     {
-        $department = Department::query()->find($id);
+        $department = Department::withTrashed()->find($id);
 
         if (!$department) {
             return false;
         }
 
-        return $department->delete();
+        return $force ? $department->forceDelete() : $department->delete();
+    }
+
+    /**
+     * Restore a delete department.
+     *
+     * @param int $id
+     * @return Department|null
+     */
+    public function restoreDepartment(int $id): ?Department
+    {
+        $department = Department::onlyTrashed()->find($id);
+
+        if (!$department) {
+            return null;
+        }
+
+        $department->restore();
+
+        return $department->fresh();
     }
 
     /**
@@ -102,22 +134,6 @@ class DepartmentService
     public function getDepartmentsByFaculty(int $facultyId, ?int $perPage = null): Collection|LengthAwarePaginator
     {
         $query = Department::query()->where('faculty_id', $facultyId);
-
-        return $perPage ? $query->paginate($perPage) : $query->get();
-    }
-
-    /**
-     * Search departments by name or code.
-     *
-     * @param string $term
-     * @param int|null $perPage
-     * @return Collection|LengthAwarePaginator
-     */
-    public function searchDepartments(string $term, ?int $perPage = null): Collection|LengthAwarePaginator
-    {
-        $query = Department::query()
-            ->whereLike('name', "%$term%")
-            ->orWhereLike('code', "%$term%");
 
         return $perPage ? $query->paginate($perPage) : $query->get();
     }

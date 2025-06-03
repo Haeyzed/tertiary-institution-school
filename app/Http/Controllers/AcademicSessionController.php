@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AcademicSessionRequest;
 use App\Http\Resources\AcademicSessionResource;
+use App\Models\AcademicSession;
 use App\Services\AcademicSessionService;
 use Exception;
 use Illuminate\Http\JsonResponse;
@@ -43,12 +44,14 @@ class AcademicSessionController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $academicSessions = $this->academicSessionService->getAllAcademicSessions($perPage, $relations);
+        $academicSessions = $this->academicSessionService->getAllAcademicSessions($term, $perPage, $relations, $deleted);
 
         return response()->success(
             AcademicSessionResource::collection($academicSessions),
@@ -142,20 +145,46 @@ class AcademicSessionController extends Controller
     /**
      * Remove the specified academic session from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $deleted = $this->academicSessionService->deleteAcademicSession($id);
+        $force = $request->boolean('force');
 
-        if (!$deleted) {
+        $academicSession = AcademicSession::withTrashed()->find($id);
+
+        if (!$academicSession) {
             return response()->error('Academic session not found', null, 404);
         }
 
+        if ($academicSession->is_current) {
+            return response()->error('You cannot delete the current academic session.', null, 403);
+        }
+
+        $deleted = $this->academicSessionService->deleteAcademicSession($id, $force);
+
+        return response()->success(null, 'Academic session deleted successfully');
+    }
+
+    /**
+     * Restore a soft-deleted academic session.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->academicSessionService->restoreAcademicSession($id);
+
+        if (!$restored) {
+            return response()->error('Academic session not found or not deleted', null, 404);
+        }
+
         return response()->success(
-            null,
-            'Academic session deleted successfully'
+            new AcademicSessionResource($restored),
+            'Academic session restored successfully'
         );
     }
 

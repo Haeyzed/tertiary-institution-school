@@ -40,12 +40,14 @@ class StaffController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $staff = $this->staffService->getAllStaff($perPage, $relations);
+        $staff = $this->staffService->getAllStaff($term, $perPage, $relations, $deleted);
 
         return response()->success(
             StaffResource::collection($staff),
@@ -139,14 +141,17 @@ class StaffController extends Controller
     /**
      * Remove the specified staff from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      * @throws Throwable
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $force = $request->boolean('force');
+
         try {
-            $deleted = $this->staffService->deleteStaff($id);
+            $deleted = $this->staffService->deleteStaff($id, $force);
 
             if (!$deleted) {
                 return response()->error('Staff not found', null, 404);
@@ -163,6 +168,26 @@ class StaffController extends Controller
                 500
             );
         }
+    }
+
+    /**
+     * Restore a soft-deleted staff.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function restore(int $id): JsonResponse
+    {
+        $restored = $this->staffService->restoreStaff($id);
+
+        if (!$restored) {
+            return response()->error('Staff not found or not deleted', null, 404);
+        }
+
+        return response()->success(
+            new StaffResource($restored),
+            'Staff restored successfully'
+        );
     }
 
     /**

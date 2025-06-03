@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('type')->default('general');
             $table->boolean('is_read')->default(false);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -16,16 +16,27 @@ class StudentService
     /**
      * Get all students with optional pagination.
      *
+     * @param string $term
      * @param int|null $perPage
      * @param array $relations
+     * @param bool|null $onlyDeleted
      * @return Collection|LengthAwarePaginator
      */
-    public function getAllStudents(?int $perPage = null, array $relations = []): Collection|LengthAwarePaginator
+    public function getAllStudents(string $term, ?int $perPage = null, array $relations = [], ?bool $onlyDeleted = null): Collection|LengthAwarePaginator
     {
-        $query = Student::query();
+        $query = Student::query()
+            ->where(function ($q) use ($term) {
+                $q->whereLike('current_semester', "%$term%");
+            });
 
         if (!empty($relations)) {
             $query->with($relations);
+        }
+
+        if ($onlyDeleted === true) {
+            $query->onlyTrashed();
+        } elseif ($onlyDeleted === false) {
+            $query->withoutTrashed();
         }
 
         return $perPage ? $query->paginate($perPage) : $query->get();
@@ -136,28 +147,50 @@ class StudentService
     }
 
     /**
-     * Delete a student.
+     * Delete or force delete a student.
      *
      * @param int $id
+     * @param bool $force
      * @return bool
      * @throws Exception|Throwable
      */
-    public function deleteStudent(int $id): bool
+    public function deleteStudent(int $id, bool $force = false): bool
     {
-        $student = Student::query()->find($id);
+        $student = Student::withTrashed()->find($id);
 
         if (!$student) {
             return false;
         }
 
-        return DB::transaction(function () use ($student) {
-            // Delete the student record
-            $student->delete();
-
-            // Delete the associated user account
-            $student->user->delete();
+        return DB::transaction(function () use ($student, $force) {
+            if ($force) {
+                $student->forceDelete();
+                $student->user->forceDelete();
+            } else {
+                $student->delete();
+                $student->user->delete();
+            }
             return true;
         });
+    }
+
+    /**
+     * Restore a delete student.
+     *
+     * @param int $id
+     * @return Student|null
+     */
+    public function restoreStudent(int $id): ?Student
+    {
+        $student = Student::onlyTrashed()->find($id);
+
+        if (!$student) {
+            return null;
+        }
+
+        $student->restore();
+
+        return $student->fresh();
     }
 
     /**

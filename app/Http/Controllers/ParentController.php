@@ -40,12 +40,14 @@ class ParentController extends Controller
     {
         $perPage = $request->query('per_page', config('app.per_page'));
         $relations = $request->query('with', []);
+        $deleted = $request->boolean('deleted', null);
+        $term = $request->query('term', '');
 
         if (is_string($relations)) {
             $relations = explode(',', $relations);
         }
 
-        $parents = $this->parentService->getAllParents($perPage, $relations);
+        $parents = $this->parentService->getAllParents($term, $perPage, $relations, $deleted);
 
         return response()->success(
             ParentResource::collection($parents),
@@ -139,14 +141,17 @@ class ParentController extends Controller
     /**
      * Remove the specified parent from storage.
      *
+     * @param Request $request
      * @param int $id
      * @return JsonResponse
      * @throws Throwable
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $force = $request->boolean('force');
+
         try {
-            $deleted = $this->parentService->deleteParent($id);
+            $deleted = $this->parentService->deleteParent($id, $force);
 
             if (!$deleted) {
                 return response()->error('Parent not found', null, 404);
@@ -166,23 +171,22 @@ class ParentController extends Controller
     }
 
     /**
-     * Search parents by name or email.
+     * Restore a soft-deleted parent.
      *
-     * @param Request $request
+     * @param int $id
      * @return JsonResponse
      */
-    public function search(Request $request): JsonResponse
+    public function restore(int $id): JsonResponse
     {
-        $request->validate([
-            'term' => 'required|string|min:2',
-        ]);
+        $restored = $this->parentService->restoreParent($id);
 
-        $perPage = $request->query('per_page', config('app.per_page'));
-        $parents = $this->parentService->searchParents($request->term, $perPage);
+        if (!$restored) {
+            return response()->error('Parent not found or not deleted', null, 404);
+        }
 
         return response()->success(
-            ParentResource::collection($parents),
-            'Search results retrieved successfully'
+            new ParentResource($restored),
+            'Parent restored successfully'
         );
     }
 }
